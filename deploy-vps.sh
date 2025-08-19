@@ -61,12 +61,12 @@ check_dependencies() {
     log_success "Docker encontrado: $(docker --version)"
     
     # Verificar Docker Compose
-    if ! command -v docker-compose &> /dev/null; then
+    if ! command -v docker compose &> /dev/null; then
         log_error "Docker Compose no está instalado"
-        log_info "Instala Docker Compose: sudo curl -L \"https://github.com/docker/compose/releases/latest/download/docker-compose-\$(uname -s)-\$(uname -m)\" -o /usr/local/bin/docker-compose && sudo chmod +x /usr/local/bin/docker-compose"
+        log_info "Instala Docker Compose: sudo curl -L \"https://github.com/docker/compose/releases/latest/download/docker compose-\$(uname -s)-\$(uname -m)\" -o /usr/local/bin/docker compose && sudo chmod +x /usr/local/bin/docker compose"
         exit 1
     fi
-    log_success "Docker Compose encontrado: $(docker-compose --version)"
+    log_success "Docker Compose encontrado: $(docker compose --version)"
     
     # Verificar que Docker está corriendo
     if ! docker info &> /dev/null; then
@@ -83,7 +83,7 @@ check_dependencies() {
 check_project_files() {
     log_info "Verificando archivos del proyecto..."
     
-    local required_files=("package.json" "server.js" "Dockerfile" "docker-compose.yml")
+    local required_files=("package.json" "server.js" "Dockerfile" "docker compose.yml")
     local missing_files=()
     
     for file in "${required_files[@]}"; do
@@ -167,16 +167,16 @@ create_backup() {
 stop_existing_services() {
     log_info "Deteniendo servicios existentes..."
     
-    # Detener docker-compose si está corriendo
-    if docker-compose ps | grep -q "Up"; then
-        docker-compose down
+    # Detener docker compose si está corriendo
+    if docker compose ps | grep -q "Up"; then
+        docker compose down
         log_success "Servicios Docker Compose detenidos"
     else
         log_info "No hay servicios corriendo"
     fi
     
     # Limpiar contenedores huérfanos
-    docker-compose down --remove-orphans 2>/dev/null || true
+    docker compose down --remove-orphans 2>/dev/null || true
 }
 
 # Construir imágenes Docker
@@ -187,7 +187,7 @@ build_docker_images() {
     docker system prune -f &>/dev/null || true
     
     # Construir imagen sin cache
-    if docker-compose build --no-cache; then
+    if docker compose build --no-cache; then
         log_success "Imágenes Docker construidas exitosamente"
     else
         log_error "Error construyendo imágenes Docker"
@@ -199,7 +199,7 @@ build_docker_images() {
 start_services() {
     log_info "Iniciando servicios de QuickPlan..."
     
-    if docker-compose up -d; then
+    if docker compose up -d; then
         log_success "Servicios iniciados en modo detached"
     else
         log_error "Error iniciando servicios"
@@ -218,7 +218,7 @@ verify_services() {
     # Estado de contenedores
     echo ""
     echo "📊 Estado de contenedores:"
-    docker-compose ps
+    docker compose ps
     
     # Verificar health check
     echo ""
@@ -235,7 +235,7 @@ verify_services() {
             if [ $attempt -eq $max_attempts ]; then
                 log_error "Health check falló después de $max_attempts intentos"
                 log_info "Mostrando logs para diagnóstico:"
-                docker-compose logs --tail=20
+                docker compose logs --tail=20
             else
                 sleep 5
             fi
@@ -276,10 +276,10 @@ show_access_info() {
     echo "   • Ubicación: $(pwd)"
     echo ""
     echo "🛠️ Comandos útiles:"
-    echo "   docker-compose logs -f      # Ver logs en tiempo real"
-    echo "   docker-compose ps           # Estado de servicios"
-    echo "   docker-compose restart      # Reiniciar servicios"
-    echo "   docker-compose down         # Detener servicios"
+    echo "   docker compose logs -f      # Ver logs en tiempo real"
+    echo "   docker compose ps           # Estado de servicios"
+    echo "   docker compose restart      # Reiniciar servicios"
+    echo "   docker compose down         # Detener servicios"
     echo ""
     echo "🧪 Pasos siguientes:"
     echo "   1. Abrir http://${server_ip} en tu navegador"
