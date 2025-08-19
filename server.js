@@ -25,7 +25,7 @@ if (!fs.existsSync(dataDir)) {
 app.use(helmet({
     contentSecurityPolicy: {
         directives: {
-            defaultSrc: ["'self'"],
+            defaultSrc: ["'self'", "'unsafe-eval'", "'unsafe-inline'"],
             styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.quasar.dev", "https://fonts.googleapis.com"],
             scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://unpkg.com", "https://cdn.quasar.dev"],
             fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdn.quasar.dev"],
