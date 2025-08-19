@@ -173,6 +173,21 @@ app.put('/api/tasks/:id', (req, res) => {
     );
 });
 
+// Eliminar todas las tareas
+app.delete('/api/tasks', (req, res) => {
+    console.log('🗑️ Eliminando todas las tareas');
+
+    db.run('DELETE FROM tasks', function(err) {
+        if (err) {
+            console.error('❌ Error eliminando todas las tareas:', err);
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        console.log(`✅ ${this.changes} tareas eliminadas`);
+        res.json({ message: `${this.changes} tareas eliminadas exitosamente` });
+    });
+});
+
 app.delete('/api/tasks/:id', (req, res) => {
     const { id } = req.params;
 

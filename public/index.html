@@ -18,7 +18,7 @@
         body {
             font-family: 'Inter', sans-serif;
             margin: 0;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #0487a8 0%, #025a73 100%);
             min-height: 100vh;
         }
         
@@ -31,7 +31,7 @@
         }
         
         .header {
-            background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+            background: linear-gradient(135deg, #0487a8 0%, #025a73 100%);
             color: white;
             padding: 30px;
             text-align: center;
@@ -66,13 +66,13 @@
             padding: 20px;
             border-radius: 8px;
             text-align: center;
-            border-left: 4px solid #2196F3;
+            border-left: 4px solid #0487a8;
         }
         
         .stat-number {
             font-size: 2rem;
             font-weight: 700;
-            color: #2196F3;
+            color: #0487a8;
             margin-bottom: 5px;
         }
         
@@ -136,7 +136,7 @@
         }
         
         .tasks-table th {
-            background: #2196F3;
+            background: #0487a8;
             color: white;
             padding: 15px;
             text-align: left;
@@ -163,12 +163,12 @@
         
         .editable-cell:hover {
             background: #e3f2fd;
-            border-color: #2196F3;
+            border-color: #0487a8;
         }
         
         .editing {
             background: white;
-            border-color: #2196F3;
+            border-color: #0487a8;
         }
         
         .action-buttons {
@@ -189,12 +189,12 @@
         }
         
         .btn-primary {
-            background: #2196F3;
+            background: #0487a8;
             color: white;
         }
         
         .btn-primary:hover {
-            background: #1976D2;
+            background: #025a73;
             transform: translateY(-2px);
         }
         
@@ -229,6 +229,15 @@
             background: #f57c00;
         }
         
+        .btn-clear {
+            background: #e74c3c;
+            color: white;
+        }
+        
+        .btn-clear:hover {
+            background: #c0392b;
+        }
+        
         .input-field {
             padding: 10px;
             border: 2px solid #ddd;
@@ -241,7 +250,7 @@
         
         .input-field:focus {
             outline: none;
-            border-color: #2196F3;
+            border-color: #0487a8;
         }
         
         .notification {
@@ -293,6 +302,42 @@
             color: #666;
             border-top: 1px solid #eee;
             margin-top: 30px;
+        }
+        
+        .footer a {
+            color: #0487a8;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        .footer a:hover {
+            text-decoration: underline;
+        }
+        
+        .id-cell {
+            font-weight: 600; 
+            color: #0487a8;
+        }
+        
+        .th-id {
+            width: 60px;
+        }
+        
+        .th-hours {
+            width: 100px;
+        }
+        
+        .th-resource {
+            width: 150px;
+        }
+        
+        .th-actions {
+            width: 120px;
+        }
+        
+        .tasks-header {
+            margin: 0; 
+            color: #333;
         }
     </style>
 </head>
@@ -358,8 +403,11 @@
                 
                 <!-- Barra de Acciones -->
                 <div class="actions-bar">
-                    <h2 style="margin: 0; color: #333;">📋 Lista de Tareas</h2>
+                    <h2 class="tasks-header">📋 Lista de Tareas</h2>
                     <div>
+                        <button @click="clearAllTasks" class="btn btn-clear">
+                            🗑️ Limpiar Todo
+                        </button>
                         <button @click="refreshData" class="btn btn-primary">
                             🔄 Actualizar
                         </button>
@@ -381,17 +429,17 @@
                     <table v-else class="tasks-table">
                         <thead>
                             <tr>
-                                <th style="width: 60px;">ID</th>
+                                <th class="th-id">ID</th>
                                 <th>Tarea</th>
-                                <th style="width: 100px;">Horas</th>
+                                <th class="th-hours">Horas</th>
                                 <th>Observaciones</th>
-                                <th style="width: 150px;">Recurso</th>
-                                <th style="width: 120px;">Acciones</th>
+                                <th class="th-resource">Recurso</th>
+                                <th class="th-actions">Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr v-for="task in tasks" :key="task.id">
-                                <td style="font-weight: 600; color: #2196F3;">
+                                <td class="id-cell">
                                     #{{ task.id }}
                                 </td>
                                 <td>
@@ -439,7 +487,7 @@
                 <!-- Footer -->
                 <div class="footer">
                     <p>🚀 QuickPlan v1.0.0 - Desarrollado por <strong>andyjara-dev</strong></p>
-                    <p>Node.js + Express + SQLite + Vue.js</p>
+                    <p>Node.js + Express + SQLite + Vue.js | <a href="https://desarrollador.cl" target="_blank" rel="noopener">desarrollador.cl</a></p>
                 </div>
             </div>
         </div>
@@ -545,6 +593,27 @@
                             await this.refreshData();
                         } else {
                             this.showNotification('Error eliminando tarea', 'error');
+                        }
+                    } catch (error) {
+                        console.error('Error:', error);
+                        this.showNotification('Error de conexión', 'error');
+                    }
+                },
+                
+                async clearAllTasks() {
+                    if (!confirm('⚠️ ¿Estás seguro de eliminar TODAS las tareas?\n\nEsta acción no se puede deshacer.')) return;
+                    
+                    try {
+                        const response = await fetch('/api/tasks', {
+                            method: 'DELETE'
+                        });
+                        
+                        if (response.ok) {
+                            const result = await response.json();
+                            this.showNotification(result.message || 'Todas las tareas eliminadas', 'success');
+                            await this.refreshData();
+                        } else {
+                            this.showNotification('Error eliminando tareas', 'error');
                         }
                     } catch (error) {
                         console.error('Error:', error);
