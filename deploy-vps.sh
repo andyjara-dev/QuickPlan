@@ -83,7 +83,7 @@ check_dependencies() {
 check_project_files() {
     log_info "Verificando archivos del proyecto..."
     
-    local required_files=("package.json" "server.js" "Dockerfile" "docker compose.yml")
+    local required_files=("package.json" "server.js" "Dockerfile" "docker-compose.yml")
     local missing_files=()
     
     for file in "${required_files[@]}"; do
