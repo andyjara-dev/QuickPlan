@@ -11,11 +11,15 @@ const fs = require('fs');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Configurar trust proxy ANTES de rate limiting
+app.set('trust proxy', 1);
+
 // Crear directorio data si no existe
 const dataDir = path.join(__dirname, 'data');
 if (!fs.existsSync(dataDir)) {
     fs.mkdirSync(dataDir, { recursive: true });
 }
+
 
 // Configuración de seguridad
 app.use(helmet({
@@ -36,6 +40,7 @@ app.use(compression());
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static('public'));
+
 
 // Rate limiting
 const limiter = rateLimit({
