@@ -24,13 +24,17 @@ if (!fs.existsSync(dataDir)) {
 // Configuración de seguridad
 app.use(helmet({
     contentSecurityPolicy: {
+        useDefaults: false,
         directives: {
-            defaultSrc: ["'self'", "'unsafe-eval'", "'unsafe-inline'"],
-            styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.quasar.dev", "https://fonts.googleapis.com"],
-            scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://unpkg.com", "https://cdn.quasar.dev"],
-            fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdn.quasar.dev"],
-            connectSrc: ["'self'"],
-            imgSrc: ["'self'", "data:", "https:"]
+            defaultSrc: ["'self'", "'unsafe-eval'", "'unsafe-inline'", "http:", "https:", "data:", "blob:"],
+            scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "http:", "https:", "data:", "blob:", "https://unpkg.com", "https://cdn.quasar.dev"],
+            styleSrc: ["'self'", "'unsafe-inline'", "http:", "https:", "https://cdn.quasar.dev", "https://fonts.googleapis.com"],
+            fontSrc: ["'self'", "http:", "https:", "data:", "https://fonts.gstatic.com", "https://cdn.quasar.dev"],
+            connectSrc: ["'self'", "http:", "https:", "data:", "blob:"],
+            imgSrc: ["'self'", "http:", "https:", "data:", "blob:"],
+            objectSrc: ["'none'"],
+            mediaSrc: ["'self'", "http:", "https:", "data:"],
+            frameSrc: ["'self'", "http:", "https:"]
         }
     }
 }));
