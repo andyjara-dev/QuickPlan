@@ -1,0 +1,43 @@
+# Dependencias de Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Base de datos SQLite
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+logs/
+*.log
+
+# Archivos de ambiente
+.env
+.env.local
+.env.production
+
+# Archivos temporales
+tmp/
+temp/
+
+# Backups
+backups/*.db
+
+# Docker
+.dockerignore
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Certificados SSL
+nginx/ssl/*
+!nginx/ssl/.gitkeep

@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  # Aplicación QuickPlan
+  quickplan-app:
+    build: .
+    container_name: quickplan-app
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - TZ=America/Santiago
+      - APP_NAME=QuickPlan
+    volumes:
+      - quickplan-data:/app/data
+    networks:
+      - quickplan-network
+    labels:
+      - "com.quickplan.description=QuickPlan Main Application"
+      - "com.quickplan.version=1.0.0"
+
+  # Nginx como reverse proxy
+  quickplan-nginx:
+    image: nginx:1.25-alpine
+    container_name: quickplan-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - nginx-cache:/var/cache/nginx
+    networks:
+      - quickplan-network
+    depends_on:
+      - quickplan-app
+    labels:
+      - "com.quickplan.description=QuickPlan Nginx Proxy"
+
+  # Servicio para backup automático
+  quickplan-backup:
+    image: alpine:latest
+    container_name: quickplan-backup
+    restart: "no"
+    volumes:
+      - quickplan-data:/data:ro
+      - ./backups:/backups
+    command: >
+      sh -c "
+        mkdir -p /backups &&
+        cp /data/tasks.db /backups/quickplan_backup_$$(date +%Y%m%d_%H%M%S).db &&
+        find /backups -name 'quickplan_backup_*.db' -mtime +7 -delete &&
+        echo 'QuickPlan Backup completado: $$(date)'
+      "
+    profiles:
+      - backup
+
+# Volúmenes persistentes
+volumes:
+  quickplan-data:
+    name: quickplan_database
+  nginx-cache:
+    name: quickplan_nginx_cache
+
+# Red personalizada
+networks:
+  quickplan-network:
+    name: quickplan_network
+    driver: bridge
