@@ -23,7 +23,7 @@ app.use(helmet({
         directives: {
             defaultSrc: ["'self'"],
             styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.quasar.dev", "https://fonts.googleapis.com"],
-            scriptSrc: ["'self'", "'unsafe-inline'", "https://unpkg.com", "https://cdn.quasar.dev"],
+            scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://unpkg.com", "https://cdn.quasar.dev"],
             fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdn.quasar.dev"],
             connectSrc: ["'self'"],
             imgSrc: ["'self'", "data:", "https:"]

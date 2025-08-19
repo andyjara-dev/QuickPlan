@@ -34,10 +34,10 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/andyjara-dev/quickplan-manager.git"
+    "url": "https://github.com/andyjara-dev/QuickPlan.git"
   },
   "bugs": {
-    "url": "https://github.com/andyjara-dev/quickplan-manager/issues"
+    "url": "https://github.com/andyjara-dev/QuickPlan/issues"
   },
-  "homepage": "https://github.com/andyjara-dev/quickplan-manager#readme"
+  "homepage": "https://github.com/andyjara-dev/QuickPlan#readme"
 }
