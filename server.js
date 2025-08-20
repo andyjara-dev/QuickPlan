@@ -697,10 +697,10 @@ app.get('/api/stats', (req, res) => {
     // Consultar DB solo si no hay cache válido
     db.all(`
         SELECT 
-            COUNT(*) as total_tareas,
-            SUM(horas) as total_horas,
+            COUNT(CASE WHEN is_subtask = 0 THEN 1 END) as total_tareas,
+            SUM(CASE WHEN is_subtask = 0 THEN horas ELSE 0 END) as total_horas,
             COUNT(DISTINCT recurso) as recursos_unicos,
-            AVG(horas) as promedio_horas
+            AVG(CASE WHEN is_subtask = 0 THEN horas END) as promedio_horas
         FROM tasks
     `, (err, stats) => {
         if (err) {
