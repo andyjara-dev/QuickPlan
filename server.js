@@ -346,7 +346,7 @@ app.post('/api/export', async (req, res) => {
             { header: 'ID', key: 'id', width: 8 },
             { header: 'Tarea', key: 'tarea', width: 45 },
             { header: 'Horas', key: 'horas', width: 12 },
-            { header: 'Observaciones', key: 'observaciones', width: 35 },
+            { header: 'Observaciones', key: 'observaciones', width: 50 }, // Aumentado para mejor visualización
             { header: 'Recurso', key: 'recurso', width: 20 },
             { header: 'Fecha Creación', key: 'created_at', width: 18 }
         ];
@@ -417,6 +417,15 @@ app.post('/api/export', async (req, res) => {
         for (let i = 6; i <= 5 + tasks.length; i++) {
             const row = worksheet.getRow(i);
             row.font = { size: 9 }; // Fuente más pequeña para las filas de datos
+            row.height = 30; // Altura aumentada para observaciones largas
+            
+            // Aplicar wrap text a la columna de observaciones (columna D)
+            const observacionesCell = worksheet.getCell(`D${i}`);
+            observacionesCell.alignment = { 
+                wrapText: true, 
+                vertical: 'top', 
+                horizontal: 'left' 
+            };
             
             if (i % 2 === 0) {
                 row.fill = {
@@ -426,6 +435,14 @@ app.post('/api/export', async (req, res) => {
                 };
             }
         }
+        
+        // También aplicar wrap text al header de observaciones
+        const headerObservacionesCell = worksheet.getCell('D5');
+        headerObservacionesCell.alignment = { 
+            wrapText: true, 
+            vertical: 'middle', 
+            horizontal: 'center' 
+        };
 
         // Generar buffer
         const buffer = await workbook.xlsx.writeBuffer();
