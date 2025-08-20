@@ -229,6 +229,27 @@
             background: #f57c00;
         }
         
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        
+        .btn-secondary:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+        
+        .btn-small {
+            padding: 4px 8px;
+            font-size: 0.75rem;
+            margin: 0 2px;
+        }
+        
         .btn-clear {
             background: #e74c3c;
             color: white;
@@ -251,6 +272,13 @@
         .input-field:focus {
             outline: none;
             border-color: #0487a8;
+        }
+        
+        .textarea-field {
+            resize: vertical;
+            min-height: 60px;
+            font-family: inherit;
+            line-height: 1.4;
         }
         
         .notification {
@@ -385,10 +413,11 @@
                                step="0.5" 
                                placeholder="Horas" 
                                @keyup.enter="addTask">
-                        <input v-model="newTask.observaciones" 
-                               class="input-field" 
-                               placeholder="Observaciones" 
-                               @keyup.enter="addTask">
+                        <textarea v-model="newTask.observaciones" 
+                                  class="input-field textarea-field" 
+                                  placeholder="Observaciones (opcional)" 
+                                  rows="3"
+                                  @keyup.enter="addTask"></textarea>
                         <input v-model="newTask.recurso" 
                                class="input-field" 
                                placeholder="Recurso a cargo*" 
@@ -472,8 +501,20 @@
                                 </td>
                                 <td>
                                     <div class="action-buttons">
+                                        <button @click="moveTaskUp(task.id)" 
+                                                class="btn btn-secondary btn-small" 
+                                                title="Subir tarea"
+                                                :disabled="tasks.indexOf(task) === 0">
+                                            ⬆️
+                                        </button>
+                                        <button @click="moveTaskDown(task.id)" 
+                                                class="btn btn-secondary btn-small" 
+                                                title="Bajar tarea"
+                                                :disabled="tasks.indexOf(task) === tasks.length - 1">
+                                            ⬇️
+                                        </button>
                                         <button @click="deleteTask(task.id)" 
-                                                class="btn btn-danger" 
+                                                class="btn btn-danger btn-small" 
                                                 title="Eliminar tarea">
                                             🗑️
                                         </button>
@@ -580,6 +621,51 @@
                     }
                 },
                 
+                // Funciones de reordenamiento
+                moveTaskUp(taskId) {
+                    const currentIndex = this.tasks.findIndex(task => task.id === taskId);
+                    if (currentIndex > 0) {
+                        this.swapTasks(currentIndex, currentIndex - 1);
+                    }
+                },
+                
+                moveTaskDown(taskId) {
+                    const currentIndex = this.tasks.findIndex(task => task.id === taskId);
+                    if (currentIndex < this.tasks.length - 1) {
+                        this.swapTasks(currentIndex, currentIndex + 1);
+                    }
+                },
+                
+                swapTasks(index1, index2) {
+                    // Intercambiar elementos en el array local
+                    const temp = this.tasks[index1];
+                    this.tasks[index1] = this.tasks[index2];
+                    this.tasks[index2] = temp;
+                    
+                    // Enviar orden actualizado al servidor
+                    this.updateTaskOrder();
+                },
+                
+                async updateTaskOrder() {
+                    try {
+                        const orderedIds = this.tasks.map(task => task.id);
+                        const response = await fetch('/api/tasks/reorder', {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ order: orderedIds })
+                        });
+                        
+                        if (!response.ok) {
+                            throw new Error('Error actualizando orden');
+                        }
+                        
+                        console.log('✅ Orden de tareas actualizado');
+                    } catch (error) {
+                        console.error('❌ Error actualizando orden:', error);
+                        this.showNotification('Error actualizando orden de tareas', 'error');
+                    }
+                },
+                
                 async deleteTask(id) {
                     if (!confirm('¿Estás seguro de eliminar esta tarea?')) return;
                     
@@ -631,25 +717,35 @@
                     this.$nextTick(() => {
                         const cell = document.querySelector(`.editing`);
                         if (cell) {
-                            const input = document.createElement('input');
-                            input.value = currentValue;
-                            input.className = 'input-field';
-                            input.style.margin = '0';
-                            input.style.padding = '4px 8px';
+                            let inputElement;
                             
-                            if (field === 'horas') {
-                                input.type = 'number';
-                                input.step = '0.5';
+                            // Usar textarea para observaciones, input para otros campos
+                            if (field === 'observaciones') {
+                                inputElement = document.createElement('textarea');
+                                inputElement.rows = 3;
+                                inputElement.className = 'input-field textarea-field';
+                                inputElement.style.resize = 'vertical';
+                            } else {
+                                inputElement = document.createElement('input');
+                                inputElement.className = 'input-field';
+                                if (field === 'horas') {
+                                    inputElement.type = 'number';
+                                    inputElement.step = '0.5';
+                                }
                             }
                             
-                            cell.innerHTML = '';
-                            cell.appendChild(input);
-                            input.focus();
-                            input.select();
+                            inputElement.value = currentValue;
+                            inputElement.style.margin = '0';
+                            inputElement.style.padding = '4px 8px';
                             
-                            input.addEventListener('blur', () => this.saveEdit());
-                            input.addEventListener('keyup', (e) => {
-                                if (e.key === 'Enter') this.saveEdit();
+                            cell.innerHTML = '';
+                            cell.appendChild(inputElement);
+                            inputElement.focus();
+                            inputElement.select();
+                            
+                            inputElement.addEventListener('blur', () => this.saveEdit());
+                            inputElement.addEventListener('keyup', (e) => {
+                                if (e.key === 'Enter' && field !== 'observaciones') this.saveEdit(); // No submit en Enter para textarea
                                 if (e.key === 'Escape') this.cancelEdit();
                             });
                         }
@@ -657,12 +753,12 @@
                 },
                 
                 async saveEdit() {
-                    const input = document.querySelector('.editing input');
-                    if (!input) return;
+                    const inputElement = document.querySelector('.editing input') || document.querySelector('.editing textarea');
+                    if (!inputElement) return;
                     
                     const newValue = this.editingField === 'horas' ? 
-                        parseFloat(input.value) || 0 : 
-                        input.value;
+                        parseFloat(inputElement.value) || 0 : 
+                        inputElement.value;
                     
                     try {
                         const task = this.tasks.find(t => t.id === this.editingTaskId);

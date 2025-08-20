@@ -100,6 +100,7 @@ db.run(`
         horas REAL DEFAULT 0,
         observaciones TEXT DEFAULT '',
         recurso TEXT DEFAULT '',
+        sort_order INTEGER DEFAULT 0,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
@@ -108,6 +109,15 @@ db.run(`
         console.error('❌ Error creando tabla:', err);
     } else {
         console.log('✅ Tabla de tareas lista');
+        
+        // Verificar si la columna sort_order existe, si no, agregarla
+        db.run(`ALTER TABLE tasks ADD COLUMN sort_order INTEGER DEFAULT 0`, (err) => {
+            if (err && !err.message.includes('duplicate column name')) {
+                console.error('❌ Error agregando columna sort_order:', err);
+            } else if (!err) {
+                console.log('✅ Columna sort_order agregada');
+            }
+        });
     }
 });
 
@@ -179,7 +189,7 @@ app.get('/api/health', (req, res) => {
 // API Routes
 app.get('/api/tasks', (req, res) => {
     console.log('📋 Consultando todas las tareas');
-    db.all('SELECT * FROM tasks ORDER BY created_at DESC', (err, rows) => {
+    db.all('SELECT * FROM tasks ORDER BY sort_order ASC, created_at DESC', (err, rows) => {
         if (err) {
             console.error('❌ Error consultando tareas:', err);
             res.status(500).json({ error: err.message });
@@ -200,7 +210,7 @@ app.post('/api/tasks', (req, res) => {
     }
 
     db.run(
-        'INSERT INTO tasks (tarea, horas, observaciones, recurso) VALUES (?, ?, ?, ?)',
+        'INSERT INTO tasks (tarea, horas, observaciones, recurso, sort_order) VALUES (?, ?, ?, ?, (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM tasks))',
         [tarea, parseFloat(horas) || 0, observaciones || '', recurso],
         function(err) {
             if (err) {
@@ -270,6 +280,42 @@ app.delete('/api/tasks/:id', (req, res) => {
     });
 });
 
+// Reordenar tareas
+app.put('/api/tasks/reorder', (req, res) => {
+    const { order } = req.body;
+    
+    if (!Array.isArray(order)) {
+        return res.status(400).json({ error: 'Se requiere un array de IDs' });
+    }
+    
+    console.log('🔄 Reordenando tareas:', order);
+    
+    // Actualizar sort_order para cada tarea
+    const updatePromises = order.map((taskId, index) => {
+        return new Promise((resolve, reject) => {
+            db.run(
+                'UPDATE tasks SET sort_order = ? WHERE id = ?',
+                [index, taskId],
+                function(err) {
+                    if (err) reject(err);
+                    else resolve();
+                }
+            );
+        });
+    });
+    
+    Promise.all(updatePromises)
+        .then(() => {
+            console.log('✅ Orden de tareas actualizado');
+            invalidateStatsCache(); // Invalidar cache por si cambian estadísticas
+            res.json({ message: 'Orden actualizado exitosamente' });
+        })
+        .catch(err => {
+            console.error('❌ Error reordenando tareas:', err);
+            res.status(500).json({ error: err.message });
+        });
+});
+
 // Exportar a Excel
 app.post('/api/export', async (req, res) => {
     try {
@@ -279,7 +325,7 @@ app.post('/api/export', async (req, res) => {
         
         // Obtener todas las tareas
         const tasks = await new Promise((resolve, reject) => {
-            db.all('SELECT * FROM tasks ORDER BY created_at DESC', (err, rows) => {
+            db.all('SELECT * FROM tasks ORDER BY sort_order ASC, created_at DESC', (err, rows) => {
                 if (err) reject(err);
                 else resolve(rows);
             });
@@ -350,7 +396,7 @@ app.post('/api/export', async (req, res) => {
 
         // Estilo para encabezados de datos
         const headerRow = worksheet.getRow(5);
-        headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
         headerRow.fill = {
             type: 'pattern',
             pattern: 'solid',
@@ -367,10 +413,13 @@ app.post('/api/export', async (req, res) => {
             right: { style: 'thin' }
         };
 
-        // Alternar colores de filas
+        // Alternar colores de filas y aplicar fuente más pequeña
         for (let i = 6; i <= 5 + tasks.length; i++) {
+            const row = worksheet.getRow(i);
+            row.font = { size: 9 }; // Fuente más pequeña para las filas de datos
+            
             if (i % 2 === 0) {
-                worksheet.getRow(i).fill = {
+                row.fill = {
                     type: 'pattern',
                     pattern: 'solid',
                     fgColor: { argb: 'FFF8F9FA' }
