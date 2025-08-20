@@ -171,6 +171,109 @@
             border-color: #0487a8;
         }
         
+        /* Estilos para drag & drop */
+        .task-row {
+            cursor: move;
+            transition: background-color 0.2s ease;
+        }
+        
+        .task-row:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .task-row.dragging {
+            opacity: 0.5;
+            background-color: #e3f2fd;
+        }
+        
+        .task-row.drag-over {
+            background-color: #fff3cd;
+            border: 2px dashed #ffca28;
+        }
+        
+        .drag-handle {
+            cursor: grab;
+            color: #666;
+            padding: 0 8px;
+            font-size: 16px;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            user-select: none;
+        }
+        
+        .drag-handle:hover {
+            color: #0487a8;
+        }
+        
+        .drag-handle:active {
+            cursor: grabbing;
+        }
+        
+        /* Estilos para subtareas */
+        .subtask-row {
+            background-color: #f8f9fa;
+            border-left: 3px solid #0487a8;
+        }
+        
+        .subtask-row td:first-child {
+            padding-left: 40px;
+        }
+        
+        .toggle-subtasks {
+            background: none;
+            border: none;
+            color: #0487a8;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            transition: background-color 0.2s;
+        }
+        
+        .toggle-subtasks:hover {
+            background-color: #e3f2fd;
+        }
+        
+        .subtask-actions {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+        }
+        
+        .action-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px 6px;
+            border-radius: 3px;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+        
+        .action-btn:hover {
+            background-color: #f0f0f0;
+        }
+        
+        .action-btn.add-subtask {
+            color: #4CAF50;
+        }
+        
+        .action-btn.validate {
+            color: #FF9800;
+        }
+        
+        .action-btn.move-up {
+            color: #2196F3;
+        }
+        
+        .action-btn.move-down {
+            color: #2196F3;
+        }
+        
+        .action-btn.delete {
+            color: #f44336;
+        }
+        
         .action-buttons {
             display: flex;
             gap: 5px;
@@ -257,6 +360,101 @@
         
         .btn-clear:hover {
             background: #c0392b;
+        }
+        
+        /* Estilos para Drag & Drop */
+        .draggable-row {
+            cursor: move;
+            transition: all 0.2s ease;
+        }
+        
+        .draggable-row:hover {
+            background-color: #f8f9fa !important;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .draggable-row.dragging {
+            opacity: 0.5;
+            transform: scale(0.98);
+        }
+        
+        .draggable-row.drag-over {
+            border-top: 3px solid #0487a8;
+            background-color: #e3f2fd !important;
+        }
+        
+        .drag-handle {
+            color: #999;
+            font-size: 14px;
+            margin-right: 8px;
+            cursor: grab;
+        }
+        
+        .drag-handle:active {
+            cursor: grabbing;
+        }
+        
+        /* Estilos para Subtareas */
+        .subtask-row {
+            background-color: #f8f9fa;
+            border-left: 4px solid #0487a8;
+        }
+        
+        .subtask-id {
+            font-style: italic;
+            color: #666;
+        }
+        
+        .subtask-indent {
+            color: #0487a8;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+        
+        .subtask-toggle {
+            cursor: pointer;
+            margin-left: 8px;
+            color: #0487a8;
+            font-weight: bold;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            user-select: none;
+        }
+        
+        .subtask-toggle:hover {
+            color: #025a73;
+        }
+        
+        .task-main.has-subtasks {
+            font-weight: 500;
+            border-bottom: 2px solid #0487a8;
+        }
+        
+        .subtask-resource {
+            font-style: italic;
+            color: #999;
+        }
+        
+        .no-resource {
+            font-size: 0.9em;
+        }
+        
+        .btn-info {
+            background: #17a2b8;
+            color: white;
+        }
+        
+        .btn-info:hover {
+            background: #138496;
+        }
+        
+        .btn-warning {
+            background: #ffc107;
+            color: #212529;
+        }
+        
+        .btn-warning:hover {
+            background: #e0a800;
         }
         
         .input-field {
@@ -467,10 +665,26 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="task in tasks" :key="task.id">
-                                <td class="id-cell">
-                                    #{{ task.id }}
-                                </td>
+                            <!-- Iterar sobre tareas principales -->
+                            <template v-for="(task, index) in tasks" :key="task.id">
+                                <!-- Fila de tarea principal -->
+                                <tr class="draggable-row task-main"
+                                    :class="{ 'has-subtasks': task.subtasks && task.subtasks.length > 0 }"
+                                    draggable="true"
+                                    @dragstart="onDragStart($event, task)"
+                                    @dragover="onDragOver($event)"
+                                    @drop="onDrop($event, task)"
+                                    @dragenter="onDragEnter($event)"
+                                    @dragleave="onDragLeave($event)">
+                                    <td class="id-cell">
+                                        <span class="drag-handle">⋮⋮</span>
+                                        #{{ task.id }}
+                                        <span v-if="task.subtasks && task.subtasks.length > 0" 
+                                              class="subtask-toggle"
+                                              @click="toggleSubtasks(task.id)">
+                                            {{ task.showSubtasks ? '▼' : '▶' }}
+                                        </span>
+                                    </td>
                                 <td>
                                     <div class="editable-cell" 
                                          :class="{ editing: editingCell === `tarea-${task.id}` }"
@@ -501,6 +715,17 @@
                                 </td>
                                 <td>
                                     <div class="action-buttons">
+                                        <button @click="addSubtask(task.id)" 
+                                                class="btn btn-info btn-small" 
+                                                title="Agregar subtarea">
+                                            ➕
+                                        </button>
+                                        <button @click="validateTask(task.id)" 
+                                                class="btn btn-warning btn-small" 
+                                                title="Validar horas"
+                                                v-if="task.subtasks && task.subtasks.length > 0">
+                                            ✓
+                                        </button>
                                         <button @click="moveTaskUp(task.id)" 
                                                 class="btn btn-secondary btn-small" 
                                                 title="Subir tarea"
@@ -521,6 +746,52 @@
                                     </div>
                                 </td>
                             </tr>
+                            
+                            <!-- Filas de subtareas -->
+                            <template v-if="task.showSubtasks && task.subtasks && task.subtasks.length > 0">
+                                <tr v-for="subtask in task.subtasks" 
+                                    :key="`sub-${subtask.id}`"
+                                    class="subtask-row">
+                                    <td class="id-cell subtask-id">
+                                        <span class="subtask-indent">↳</span>
+                                        #{{ subtask.id }}
+                                    </td>
+                                    <td>
+                                        <div class="editable-cell" 
+                                             :class="{ editing: editingCell === `tarea-${subtask.id}` }"
+                                             @click="startEdit(subtask.id, 'tarea', subtask.tarea)">
+                                            {{ subtask.tarea }}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="editable-cell" 
+                                             :class="{ editing: editingCell === `horas-${subtask.id}` }"
+                                             @click="startEdit(subtask.id, 'horas', subtask.horas)">
+                                            {{ subtask.horas }} h
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="editable-cell" 
+                                             :class="{ editing: editingCell === `observaciones-${subtask.id}` }"
+                                             @click="startEdit(subtask.id, 'observaciones', subtask.observaciones)">
+                                            {{ subtask.observaciones || '-' }}
+                                        </div>
+                                    </td>
+                                    <td class="subtask-resource">
+                                        <span class="no-resource">Sin recurso asignado</span>
+                                    </td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <button @click="deleteTask(subtask.id)" 
+                                                    class="btn btn-danger btn-small" 
+                                                    title="Eliminar subtarea">
+                                                🗑️
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </template>
+                            </template>
                         </tbody>
                     </table>
                 </div>
@@ -555,7 +826,8 @@
                     editingCell: null,
                     editingValue: '',
                     editingTaskId: null,
-                    editingField: null
+                    editingField: null,
+                    draggedIndex: null
                 };
             },
             
@@ -649,6 +921,8 @@
                 async updateTaskOrder() {
                     try {
                         const orderedIds = this.tasks.map(task => task.id);
+                        console.log('🔄 Frontend: Enviando orden de tareas:', orderedIds);
+                        
                         const response = await fetch('/api/tasks/reorder', {
                             method: 'PUT',
                             headers: { 'Content-Type': 'application/json' },
@@ -659,10 +933,93 @@
                             throw new Error('Error actualizando orden');
                         }
                         
-                        console.log('✅ Orden de tareas actualizado');
+                        const result = await response.json();
+                        console.log('✅ Frontend: Respuesta del servidor:', result);
+                        
+                        // Refrescar datos desde la base de datos para asegurar consistencia
+                        console.log('🔄 Frontend: Refrescando datos...');
+                        await this.refreshData();
+                        console.log('✅ Frontend: Datos refrescados');
                     } catch (error) {
-                        console.error('❌ Error actualizando orden:', error);
+                        console.error('❌ Frontend: Error actualizando orden:', error);
                         this.showNotification('Error actualizando orden de tareas', 'error');
+                        // En caso de error, recargar para restaurar el estado correcto
+                        await this.refreshData();
+                    }
+                },
+                
+                // Funciones de Drag & Drop (eliminada función antigua)
+                
+                onDragOver(event) {
+                    event.preventDefault();
+                    event.dataTransfer.dropEffect = 'move';
+                },
+                
+                onDragEnter(event) {
+                    event.preventDefault();
+                    event.target.closest('tr').classList.add('drag-over');
+                },
+                
+                onDragLeave(event) {
+                    event.target.closest('tr').classList.remove('drag-over');
+                },
+                
+                // Funciones de Subtareas
+                toggleSubtasks(taskId) {
+                    const task = this.tasks.find(t => t.id === taskId);
+                    if (task) {
+                        task.showSubtasks = !task.showSubtasks;
+                    }
+                },
+                
+                async addSubtask(parentId) {
+                    const tarea = prompt('Título de la subtarea:');
+                    if (!tarea) return;
+                    
+                    const horasText = prompt('Horas estimadas:', '0');
+                    const horas = parseFloat(horasText) || 0;
+                    
+                    const observaciones = prompt('Observaciones (opcional):', '') || '';
+                    
+                    try {
+                        const response = await fetch(`/api/tasks/${parentId}/subtasks`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ tarea, horas, observaciones })
+                        });
+                        
+                        if (response.ok) {
+                            this.showNotification('Subtarea creada exitosamente');
+                            await this.refreshData();
+                            
+                            // Expandir automáticamente las subtareas
+                            const task = this.tasks.find(t => t.id === parentId);
+                            if (task) {
+                                task.showSubtasks = true;
+                            }
+                        } else {
+                            const error = await response.json();
+                            this.showNotification(error.error || 'Error creando subtarea', 'error');
+                        }
+                    } catch (error) {
+                        console.error('Error:', error);
+                        this.showNotification('Error de conexión', 'error');
+                    }
+                },
+                
+                async validateTask(taskId) {
+                    try {
+                        const response = await fetch(`/api/tasks/${taskId}/validate`);
+                        const validation = await response.json();
+                        
+                        if (validation.isValid) {
+                            this.showNotification(`✅ ${validation.message}`, 'success');
+                        } else {
+                            this.showNotification(`⚠️ ${validation.message}`, 'warning');
+                        }
+                    } catch (error) {
+                        console.error('Error validando:', error);
+                        this.showNotification('Error validando la tarea', 'error');
                     }
                 },
                 
@@ -704,6 +1061,55 @@
                     } catch (error) {
                         console.error('Error:', error);
                         this.showNotification('Error de conexión', 'error');
+                    }
+                },
+                
+                // Funciones de Drag and Drop
+                onDragStart(event, task) {
+                    event.dataTransfer.setData('text/plain', task.id.toString());
+                    event.dataTransfer.effectAllowed = 'move';
+                    console.log('Drag started for task:', task.id);
+                },
+
+                onDragOver(event) {
+                    event.preventDefault();
+                    event.dataTransfer.dropEffect = 'move';
+                },
+
+                onDrop(event, targetTask) {
+                    event.preventDefault();
+                    const draggedTaskId = parseInt(event.dataTransfer.getData('text/plain'));
+                    
+                    if (draggedTaskId === targetTask.id) {
+                        return; // No mover sobre sí mismo
+                    }
+                    
+                    console.log('Drop: moving task', draggedTaskId, 'to position of', targetTask.id);
+                    this.moveTask(draggedTaskId, targetTask.id);
+                },
+
+                async moveTask(draggedTaskId, targetTaskId) {
+                    try {
+                        const response = await fetch('/api/tasks/reorder', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                taskId: draggedTaskId,
+                                targetTaskId: targetTaskId
+                            })
+                        });
+
+                        if (response.ok) {
+                            await this.refreshData();
+                            this.showNotification('Tarea reordenada exitosamente', 'success');
+                        } else {
+                            throw new Error('Error al reordenar');
+                        }
+                    } catch (error) {
+                        console.error('Error moviendo tarea:', error);
+                        this.showNotification('Error al reordenar la tarea', 'error');
                     }
                 },
                 

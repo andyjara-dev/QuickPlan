@@ -110,12 +110,28 @@ db.run(`
     } else {
         console.log('✅ Tabla de tareas lista');
         
-        // Verificar si la columna sort_order existe, si no, agregarla
+        // Verificar y agregar columnas necesarias para subtareas
         db.run(`ALTER TABLE tasks ADD COLUMN sort_order INTEGER DEFAULT 0`, (err) => {
             if (err && !err.message.includes('duplicate column name')) {
                 console.error('❌ Error agregando columna sort_order:', err);
             } else if (!err) {
                 console.log('✅ Columna sort_order agregada');
+            }
+        });
+        
+        db.run(`ALTER TABLE tasks ADD COLUMN parent_id INTEGER DEFAULT NULL`, (err) => {
+            if (err && !err.message.includes('duplicate column name')) {
+                console.error('❌ Error agregando columna parent_id:', err);
+            } else if (!err) {
+                console.log('✅ Columna parent_id agregada');
+            }
+        });
+        
+        db.run(`ALTER TABLE tasks ADD COLUMN is_subtask INTEGER DEFAULT 0`, (err) => {
+            if (err && !err.message.includes('duplicate column name')) {
+                console.error('❌ Error agregando columna is_subtask:', err);
+            } else if (!err) {
+                console.log('✅ Columna is_subtask agregada');
             }
         });
     }
@@ -189,14 +205,40 @@ app.get('/api/health', (req, res) => {
 // API Routes
 app.get('/api/tasks', (req, res) => {
     console.log('📋 Consultando todas las tareas');
-    db.all('SELECT * FROM tasks ORDER BY sort_order ASC, created_at DESC', (err, rows) => {
+    
+    // Obtener todas las tareas (padres e hijas) ordenadas correctamente
+    db.all('SELECT * FROM tasks ORDER BY CASE WHEN parent_id IS NULL THEN sort_order ELSE parent_id END, parent_id IS NULL DESC, sort_order ASC, created_at DESC', (err, rows) => {
         if (err) {
             console.error('❌ Error consultando tareas:', err);
             res.status(500).json({ error: err.message });
             return;
         }
-        console.log(`✅ ${rows.length} tareas encontradas`);
-        res.json(rows);
+        
+        // Estructurar jerárquicamente
+        const taskMap = {};
+        const hierarchicalTasks = [];
+        
+        // Primero crear un mapa de todas las tareas
+        rows.forEach(task => {
+            task.subtasks = [];
+            taskMap[task.id] = task;
+        });
+        
+        // Luego organizar jerárquicamente
+        rows.forEach(task => {
+            if (task.parent_id) {
+                // Es una subtarea
+                if (taskMap[task.parent_id]) {
+                    taskMap[task.parent_id].subtasks.push(task);
+                }
+            } else {
+                // Es una tarea principal
+                hierarchicalTasks.push(task);
+            }
+        });
+        
+        console.log(`✅ ${hierarchicalTasks.length} tareas principales con subtareas encontradas`);
+        res.json(hierarchicalTasks);
     });
 });
 
@@ -223,6 +265,69 @@ app.post('/api/tasks', (req, res) => {
             res.json({ id: this.lastID, message: 'Tarea creada exitosamente' });
         }
     );
+});
+
+// Crear subtarea
+app.post('/api/tasks/:parentId/subtasks', (req, res) => {
+    const { tarea, horas, observaciones } = req.body;
+    const parentId = req.params.parentId;
+    
+    console.log('➕ Creando nueva subtarea para tarea:', parentId, { tarea, horas });
+    
+    if (!tarea) {
+        return res.status(400).json({ error: 'La subtarea requiere un título' });
+    }
+
+    db.run(
+        'INSERT INTO tasks (tarea, horas, observaciones, recurso, parent_id, is_subtask, sort_order) VALUES (?, ?, ?, ?, ?, 1, (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM tasks WHERE parent_id = ?))',
+        [tarea, parseFloat(horas) || 0, observaciones || '', '', parentId, parentId],
+        function(err) {
+            if (err) {
+                console.error('❌ Error creando subtarea:', err);
+                res.status(500).json({ error: err.message });
+                return;
+            }
+            console.log(`✅ Subtarea creada con ID: ${this.lastID}`);
+            invalidateStatsCache(); // Invalidar cache al crear subtarea
+            res.json({ id: this.lastID, message: 'Subtarea creada exitosamente' });
+        }
+    );
+});
+
+// Reordenar tareas (debe ir antes de PUT /api/tasks/:id)
+app.put('/api/tasks/reorder', (req, res) => {
+    const { order } = req.body;
+    
+    if (!Array.isArray(order)) {
+        return res.status(400).json({ error: 'Se requiere un array de IDs' });
+    }
+    
+    console.log('🔄 Reordenando tareas:', order);
+    
+    // Actualizar sort_order para cada tarea
+    const updatePromises = order.map((taskId, index) => {
+        return new Promise((resolve, reject) => {
+            db.run(
+                'UPDATE tasks SET sort_order = ? WHERE id = ?',
+                [index, taskId],
+                function(err) {
+                    if (err) reject(err);
+                    else resolve();
+                }
+            );
+        });
+    });
+    
+    Promise.all(updatePromises)
+        .then(() => {
+            console.log('✅ Orden de tareas actualizado');
+            invalidateStatsCache(); // Invalidar cache por si cambian estadísticas
+            res.json({ message: 'Orden actualizado exitosamente' });
+        })
+        .catch(err => {
+            console.error('❌ Error reordenando tareas:', err);
+            res.status(500).json({ error: err.message });
+        });
 });
 
 app.put('/api/tasks/:id', (req, res) => {
@@ -280,40 +385,98 @@ app.delete('/api/tasks/:id', (req, res) => {
     });
 });
 
-// Reordenar tareas
-app.put('/api/tasks/reorder', (req, res) => {
-    const { order } = req.body;
+// Validar suma de subtareas
+app.get('/api/tasks/:id/validate', (req, res) => {
+    const { id } = req.params;
     
-    if (!Array.isArray(order)) {
-        return res.status(400).json({ error: 'Se requiere un array de IDs' });
-    }
-    
-    console.log('🔄 Reordenando tareas:', order);
-    
-    // Actualizar sort_order para cada tarea
-    const updatePromises = order.map((taskId, index) => {
-        return new Promise((resolve, reject) => {
-            db.run(
-                'UPDATE tasks SET sort_order = ? WHERE id = ?',
-                [index, taskId],
-                function(err) {
-                    if (err) reject(err);
-                    else resolve();
-                }
-            );
+    // Obtener la tarea principal
+    db.get('SELECT * FROM tasks WHERE id = ? AND is_subtask = 0', [id], (err, parentTask) => {
+        if (err) {
+            console.error('❌ Error obteniendo tarea principal:', err);
+            return res.status(500).json({ error: err.message });
+        }
+        
+        if (!parentTask) {
+            return res.status(404).json({ error: 'Tarea no encontrada' });
+        }
+        
+        // Obtener suma de subtareas
+        db.get('SELECT SUM(horas) as total_subtasks FROM tasks WHERE parent_id = ?', [id], (err, result) => {
+            if (err) {
+                console.error('❌ Error sumando subtareas:', err);
+                return res.status(500).json({ error: err.message });
+            }
+            
+            const totalSubtasks = result.total_subtasks || 0;
+            const parentHours = parentTask.horas || 0;
+            const isValid = Math.abs(totalSubtasks - parentHours) < 0.01; // Tolerancia de 0.01 horas
+            
+            res.json({
+                parentHours: parentHours,
+                totalSubtasks: totalSubtasks,
+                difference: totalSubtasks - parentHours,
+                isValid: isValid,
+                message: isValid ? 'Las horas coinciden' : `Diferencia de ${(totalSubtasks - parentHours).toFixed(2)} horas`
+            });
         });
     });
+});
+
+// Reordenar tareas con drag & drop
+app.post('/api/tasks/reorder', (req, res) => {
+    const { taskId, targetTaskId } = req.body;
     
-    Promise.all(updatePromises)
-        .then(() => {
-            console.log('✅ Orden de tareas actualizado');
-            invalidateStatsCache(); // Invalidar cache por si cambian estadísticas
-            res.json({ message: 'Orden actualizado exitosamente' });
-        })
-        .catch(err => {
-            console.error('❌ Error reordenando tareas:', err);
-            res.status(500).json({ error: err.message });
+    if (!taskId || !targetTaskId) {
+        return res.status(400).json({ error: 'Se requiere taskId y targetTaskId' });
+    }
+    
+    console.log(`🔄 Drag & Drop: Moviendo tarea ${taskId} a posición de tarea ${targetTaskId}`);
+    
+    // Obtener todas las tareas ordenadas para hacer un reordenamiento completo
+    db.all('SELECT id, sort_order FROM tasks WHERE parent_id IS NULL ORDER BY sort_order ASC, id ASC', (err, tasks) => {
+        if (err) {
+            console.error('❌ Error obteniendo tareas:', err);
+            return res.status(500).json({ error: err.message });
+        }
+        
+        // Encontrar las posiciones de las tareas
+        const draggedIndex = tasks.findIndex(t => t.id == taskId);
+        const targetIndex = tasks.findIndex(t => t.id == targetTaskId);
+        
+        if (draggedIndex === -1 || targetIndex === -1) {
+            return res.status(404).json({ error: 'Tarea no encontrada' });
+        }
+        
+        // Reordenar el array: remover la tarea arrastrada e insertarla en la posición objetivo
+        const reorderedTasks = [...tasks];
+        const draggedTask = reorderedTasks.splice(draggedIndex, 1)[0];
+        reorderedTasks.splice(targetIndex, 0, draggedTask);
+        
+        // Actualizar sort_order para todas las tareas con el nuevo orden
+        const updatePromises = reorderedTasks.map((task, index) => {
+            return new Promise((resolve, reject) => {
+                db.run('UPDATE tasks SET sort_order = ? WHERE id = ?', [index, task.id], function(err) {
+                    if (err) reject(err);
+                    else resolve();
+                });
+            });
         });
+        
+        Promise.all(updatePromises)
+            .then(() => {
+                console.log(`✅ Tarea ${taskId} reordenada exitosamente mediante drag & drop`);
+                invalidateStatsCache();
+                res.json({ 
+                    message: 'Tarea reordenada exitosamente',
+                    taskId: taskId,
+                    newPosition: targetIndex
+                });
+            })
+            .catch(err => {
+                console.error('❌ Error actualizando orden:', err);
+                res.status(500).json({ error: err.message });
+            });
+    });
 });
 
 // Exportar a Excel
