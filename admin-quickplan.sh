@@ -69,6 +69,7 @@ show_help() {
     echo "  logs-nginx     Logs solo de Nginx"
     echo "  stats          Estadísticas de recursos"
     echo "  health         Verificar health checks"
+    echo "  diagnose       Diagnóstico completo error 503"
     echo ""
     echo "🔧 Mantenimiento:"
     echo "  backup         Crear backup manual"
@@ -222,6 +223,78 @@ show_health_check() {
     else
         log_error "Aplicación principal falló"
     fi
+}
+
+# Diagnóstico completo para error 503
+diagnose_503() {
+    log_header "Diagnóstico completo - Error 503"
+    echo ""
+    
+    # 1. Estado de contenedores
+    log_info "1. Estado de contenedores:"
+    docker compose ps
+    echo ""
+    
+    # 2. Health checks
+    log_info "2. Health checks de Docker:"
+    local app_health=$(docker inspect quickplan-app --format='{{.State.Health.Status}}' 2>/dev/null || echo "no disponible")
+    echo "   App: $app_health"
+    echo ""
+    
+    # 3. Conectividad interna
+    log_info "3. Probando conectividad interna:"
+    if docker exec quickplan-nginx wget -qO- --timeout=5 http://quickplan-app:3000/health 2>/dev/null >/dev/null; then
+        log_success "   Nginx -> App: OK"
+    else
+        log_error "   Nginx -> App: FALLO"
+    fi
+    
+    if docker exec quickplan-app wget -qO- --timeout=5 http://localhost:3000/health 2>/dev/null >/dev/null; then
+        log_success "   App local: OK"
+    else
+        log_error "   App local: FALLO"
+    fi
+    echo ""
+    
+    # 4. Test del endpoint stats específicamente
+    log_info "4. Test específico /api/stats:"
+    local stats_response=$(curl -s -w "%{http_code}" http://localhost/api/stats -o /dev/null 2>/dev/null || echo "000")
+    if [ "$stats_response" = "200" ]; then
+        log_success "   /api/stats: OK (200)"
+    else
+        log_error "   /api/stats: FALLO ($stats_response)"
+    fi
+    echo ""
+    
+    # 5. Logs recientes
+    log_info "5. Logs recientes (últimas 10 líneas):"
+    echo "   --- App ---"
+    docker compose logs --tail=10 quickplan-app 2>/dev/null || echo "   No disponible"
+    echo ""
+    echo "   --- Nginx ---"
+    docker compose logs --tail=10 quickplan-nginx 2>/dev/null || echo "   No disponible"
+    echo ""
+    
+    # 6. Recursos
+    log_info "6. Uso de recursos:"
+    docker stats --no-stream quickplan-app quickplan-nginx 2>/dev/null || echo "   No disponible"
+    echo ""
+    
+    # 7. Configuración nginx
+    log_info "7. Verificación nginx:"
+    if docker exec quickplan-nginx nginx -t 2>/dev/null; then
+        log_success "   Configuración nginx: OK"
+    else
+        log_error "   Configuración nginx: PROBLEMA"
+    fi
+    echo ""
+    
+    # 8. Recomendaciones
+    log_header "RECOMENDACIONES:"
+    echo "• Si hay errores de conectividad: ./admin-quickplan.sh restart"
+    echo "• Para logs detallados: ./admin-quickplan.sh logs"
+    echo "• Para rebuild completo: ./admin-quickplan.sh stop && docker compose build --no-cache && ./admin-quickplan.sh start"
+    echo "• Script específico: ./diagnostico-503.sh"
 }
 
 # Crear backup
@@ -471,6 +544,9 @@ main() {
             ;;
         "health")
             show_health_check
+            ;;
+        "diagnose")
+            diagnose_503
             ;;
         "backup")
             create_backup

@@ -114,6 +114,37 @@ app.get('/health', (req, res) => {
     });
 });
 
+// Detailed health check with database test
+app.get('/api/health', (req, res) => {
+    console.log('🏥 Health check detallado solicitado');
+    
+    // Test database connection
+    db.get("SELECT 1 as test", (err, row) => {
+        if (err) {
+            console.error('❌ Database health check failed:', err);
+            return res.status(503).json({
+                status: 'ERROR',
+                timestamp: new Date().toISOString(),
+                database: 'FAILED',
+                error: err.message,
+                uptime: process.uptime(),
+                memory: process.memoryUsage()
+            });
+        }
+        
+        console.log('✅ Health check OK');
+        res.status(200).json({
+            status: 'OK',
+            timestamp: new Date().toISOString(),
+            database: 'OK',
+            uptime: process.uptime(),
+            memory: process.memoryUsage(),
+            service: 'QuickPlan API',
+            version: '1.0.0'
+        });
+    });
+});
+
 // API Routes
 app.get('/api/tasks', (req, res) => {
     console.log('📋 Consultando todas las tareas');

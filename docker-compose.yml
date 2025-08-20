@@ -13,6 +13,12 @@ services:
       - quickplan-data:/app/data
     networks:
       - quickplan-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     labels:
       - "com.quickplan.description=QuickPlan Main Application"
       - "com.quickplan.version=1.0.0"
