@@ -46,23 +46,49 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.static('public'));
 
 
-// Rate limiting
+// Rate limiting mejorado para resolver 503 intermitente
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutos
     max: 100, // máximo 100 requests por IP
     message: { error: 'Demasiadas solicitudes, intenta en 15 minutos' }
 });
+
+// Rate limiting específico para refresh frecuente (evitar 503)
+const refreshLimiter = rateLimit({
+    windowMs: 2000, // 2 segundos
+    max: 5, // máximo 5 requests cada 2 segundos
+    message: { error: 'Refresh muy frecuente, espera un momento' },
+    standardHeaders: true,
+    legacyHeaders: false,
+    skip: (req) => {
+        // No aplicar límite a health checks
+        return req.path === '/health' || req.path === '/api/health';
+    }
+});
+
+// Aplicar rate limiting
 app.use('/api/', limiter);
+app.use('/', refreshLimiter);
 
 // Inicializar base de datos
 const dbPath = path.join(dataDir, 'tasks.db');
 console.log('📁 Base de datos en:', dbPath);
 
-const db = new sqlite3.Database(dbPath, (err) => {
+// Configuración optimizada de SQLite para manejo concurrente
+const db = new sqlite3.Database(dbPath, sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, (err) => {
     if (err) {
         console.error('❌ Error conectando a la base de datos:', err);
     } else {
         console.log('✅ Conectado a la base de datos SQLite');
+        
+        // Configuraciones para mejor rendimiento concurrente
+        db.run('PRAGMA journal_mode = WAL;'); // Write-Ahead Logging para concurrencia
+        db.run('PRAGMA synchronous = NORMAL;'); // Balance entre seguridad y velocidad
+        db.run('PRAGMA cache_size = 1000;'); // Cache de páginas en memoria
+        db.run('PRAGMA temp_store = memory;'); // Tablas temporales en memoria
+        db.run('PRAGMA busy_timeout = 5000;'); // Timeout para locks (5 segundos)
+        
+        console.log('⚡ SQLite optimizado para concurrencia');
     }
 });
 
@@ -102,15 +128,20 @@ db.get('SELECT COUNT(*) as count FROM tasks', (err, row) => {
     }
 });
 
-// Health check endpoint
+// Health check endpoint optimizado (sin acceso a DB para evitar competencia)
 app.get('/health', (req, res) => {
+    // Health check rápido sin DB para evitar locks
     res.json({ 
         status: 'OK', 
         service: 'QuickPlan',
         version: '1.0.0',
         timestamp: new Date().toISOString(),
         uptime: process.uptime(),
-        environment: process.env.NODE_ENV || 'development'
+        environment: process.env.NODE_ENV || 'development',
+        memory: {
+            used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+            total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024)
+        }
     });
 });
 
@@ -178,6 +209,7 @@ app.post('/api/tasks', (req, res) => {
                 return;
             }
             console.log(`✅ Tarea creada con ID: ${this.lastID}`);
+            invalidateStatsCache(); // Invalidar cache al crear tarea
             res.json({ id: this.lastID, message: 'Tarea creada exitosamente' });
         }
     );
@@ -199,6 +231,7 @@ app.put('/api/tasks/:id', (req, res) => {
                 return;
             }
             console.log(`✅ Tarea ${id} actualizada`);
+            invalidateStatsCache(); // Invalidar cache al actualizar tarea
             res.json({ message: 'Tarea actualizada exitosamente' });
         }
     );
@@ -215,6 +248,7 @@ app.delete('/api/tasks', (req, res) => {
             return;
         }
         console.log(`✅ ${this.changes} tareas eliminadas`);
+        invalidateStatsCache(); // Invalidar cache al eliminar todas las tareas
         res.json({ message: `${this.changes} tareas eliminadas exitosamente` });
     });
 });
@@ -231,6 +265,7 @@ app.delete('/api/tasks/:id', (req, res) => {
             return;
         }
         console.log(`✅ Tarea ${id} eliminada`);
+        invalidateStatsCache(); // Invalidar cache al eliminar tarea
         res.json({ message: 'Tarea eliminada exitosamente' });
     });
 });
@@ -361,8 +396,30 @@ app.post('/api/export', async (req, res) => {
     }
 });
 
-// Endpoint para estadísticas
+// Cache simple para estadísticas (evitar consultas repetitivas)
+let statsCache = null;
+let statsCacheTime = 0;
+const STATS_CACHE_TTL = 30000; // 30 segundos
+
+// Función para invalidar cache de estadísticas
+function invalidateStatsCache() {
+    statsCache = null;
+    statsCacheTime = 0;
+    console.log('🔄 Cache de estadísticas invalidado');
+}
+
+// Endpoint para estadísticas con cache
 app.get('/api/stats', (req, res) => {
+    console.log('📊 Solicitando estadísticas');
+    
+    // Usar cache si está vigente
+    const now = Date.now();
+    if (statsCache && (now - statsCacheTime) < STATS_CACHE_TTL) {
+        console.log('📈 Usando estadísticas en cache');
+        return res.json(statsCache);
+    }
+    
+    // Consultar DB solo si no hay cache válido
     db.all(`
         SELECT 
             COUNT(*) as total_tareas,
@@ -372,10 +429,17 @@ app.get('/api/stats', (req, res) => {
         FROM tasks
     `, (err, stats) => {
         if (err) {
+            console.error('❌ Error consultando estadísticas:', err);
             res.status(500).json({ error: err.message });
             return;
         }
-        res.json(stats[0]);
+        
+        // Actualizar cache
+        statsCache = stats[0];
+        statsCacheTime = now;
+        
+        console.log('✅ Estadísticas actualizadas y cacheadas');
+        res.json(statsCache);
     });
 });
 
