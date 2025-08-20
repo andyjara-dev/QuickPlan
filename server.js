@@ -271,27 +271,73 @@ app.post('/api/tasks', (req, res) => {
 app.post('/api/tasks/:parentId/subtasks', (req, res) => {
     const { tarea, horas, observaciones } = req.body;
     const parentId = req.params.parentId;
+    const newHours = parseFloat(horas) || 0;
     
-    console.log('➕ Creando nueva subtarea para tarea:', parentId, { tarea, horas });
+    console.log('➕ Creando nueva subtarea para tarea:', parentId, { tarea, horas: newHours });
     
     if (!tarea) {
         return res.status(400).json({ error: 'La subtarea requiere un título' });
     }
 
-    db.run(
-        'INSERT INTO tasks (tarea, horas, observaciones, recurso, parent_id, is_subtask, sort_order) VALUES (?, ?, ?, ?, ?, 1, (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM tasks WHERE parent_id = ?))',
-        [tarea, parseFloat(horas) || 0, observaciones || '', '', parentId, parentId],
-        function(err) {
-            if (err) {
-                console.error('❌ Error creando subtarea:', err);
-                res.status(500).json({ error: err.message });
-                return;
-            }
-            console.log(`✅ Subtarea creada con ID: ${this.lastID}`);
-            invalidateStatsCache(); // Invalidar cache al crear subtarea
-            res.json({ id: this.lastID, message: 'Subtarea creada exitosamente' });
+    // Validar que las horas no excedan el total de la tarea padre
+    db.get('SELECT horas FROM tasks WHERE id = ? AND parent_id IS NULL', [parentId], (err, parentTask) => {
+        if (err) {
+            console.error('❌ Error obteniendo tarea padre:', err);
+            return res.status(500).json({ error: err.message });
         }
-    );
+        
+        if (!parentTask) {
+            return res.status(404).json({ error: 'Tarea padre no encontrada' });
+        }
+        
+        const parentHours = parentTask.horas || 0;
+        
+        // Obtener suma de subtareas existentes
+        db.get('SELECT COALESCE(SUM(horas), 0) as totalSubtasks FROM tasks WHERE parent_id = ?', [parentId], (err, result) => {
+            if (err) {
+                console.error('❌ Error sumando subtareas existentes:', err);
+                return res.status(500).json({ error: err.message });
+            }
+            
+            const currentSubtaskHours = result.totalSubtasks || 0;
+            const totalAfterNew = currentSubtaskHours + newHours;
+            
+            console.log(`🔍 Validación: Padre=${parentHours}h, Subtareas actuales=${currentSubtaskHours}h, Nueva=${newHours}h, Total=${totalAfterNew}h`);
+            
+            if (totalAfterNew > parentHours) {
+                const available = parentHours - currentSubtaskHours;
+                return res.status(400).json({ 
+                    error: `Las horas exceden el total de la tarea padre. Disponible: ${available.toFixed(2)}h de ${parentHours}h total`,
+                    available: available,
+                    parentHours: parentHours,
+                    currentSubtasks: currentSubtaskHours,
+                    requested: newHours
+                });
+            }
+            
+            // Si la validación pasa, crear la subtarea
+            db.run(
+                'INSERT INTO tasks (tarea, horas, observaciones, recurso, parent_id, is_subtask, sort_order) VALUES (?, ?, ?, ?, ?, 1, (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM tasks WHERE parent_id = ?))',
+                [tarea, newHours, observaciones || '', '', parentId, parentId],
+                function(err) {
+                    if (err) {
+                        console.error('❌ Error creando subtarea:', err);
+                        res.status(500).json({ error: err.message });
+                        return;
+                    }
+                    console.log(`✅ Subtarea creada con ID: ${this.lastID} (${newHours}h de ${parentHours}h total)`);
+                    invalidateStatsCache(); // Invalidar cache al crear subtarea
+                    res.json({ 
+                        id: this.lastID, 
+                        message: 'Subtarea creada exitosamente',
+                        hoursUsed: totalAfterNew,
+                        hoursTotal: parentHours,
+                        hoursRemaining: parentHours - totalAfterNew
+                    });
+                }
+            );
+        });
+    });
 });
 
 // Reordenar tareas (debe ir antes de PUT /api/tasks/:id)

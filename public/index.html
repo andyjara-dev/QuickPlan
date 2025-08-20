@@ -274,6 +274,53 @@
             color: #f44336;
         }
         
+        /* Estilos para nueva subtarea */
+        .new-subtask-row {
+            background-color: #e8f5e8;
+            border-left: 3px solid #4CAF50;
+        }
+        
+        .new-subtask-row td:first-child {
+            padding-left: 40px;
+        }
+        
+        .new-subtask-input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 2px solid #4CAF50;
+            border-radius: 4px;
+            font-size: 14px;
+            background: white;
+            transition: border-color 0.2s;
+        }
+        
+        .new-subtask-input:focus {
+            outline: none;
+            border-color: #45a049;
+            box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
+        }
+        
+        .new-subtask-input::placeholder {
+            color: #999;
+            font-style: italic;
+        }
+        
+        .new-badge {
+            background: #4CAF50;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: bold;
+            margin-left: 5px;
+        }
+        
+        .subtask-indent {
+            color: #4CAF50;
+            font-weight: bold;
+            margin-right: 5px;
+        }
+        
         .action-buttons {
             display: flex;
             gap: 5px;
@@ -565,6 +612,36 @@
             margin: 0; 
             color: #333;
         }
+        
+        /* Estilos para validación de horas */
+        .hours-validation {
+            font-size: 0.8rem;
+            margin-top: 4px;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+        
+        .hours-validation.error {
+            color: #dc3545;
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .hours-validation.info {
+            color: #0c5460;
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+        }
+        
+        .hours-invalid {
+            border-color: #dc3545 !important;
+            box-shadow: 0 0 0 2px rgba(220, 53, 69, 0.25);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
@@ -791,6 +868,66 @@
                                     </td>
                                 </tr>
                             </template>
+                            
+                            <!-- Fila para agregar nueva subtarea -->
+                            <tr v-if="addingSubtaskTo === task.id" class="new-subtask-row">
+                                <td class="id-cell subtask-id">
+                                    <span class="subtask-indent">↳</span>
+                                    <span class="new-badge">NUEVA</span>
+                                </td>
+                                <td>
+                                    <input type="text" 
+                                           v-model="newSubtask.tarea"
+                                           class="new-subtask-input"
+                                           placeholder="Título de la subtarea..."
+                                           @keyup.enter="saveSubtask(task.id)"
+                                           @keyup.escape="cancelSubtask()">
+                                </td>
+                                <td>
+                                    <div class="hours-input-container">
+                                        <input type="number" 
+                                               v-model="newSubtask.horas"
+                                               class="new-subtask-input"
+                                               :class="{ 'hours-invalid': !isValidSubtaskHours }"
+                                               placeholder="0"
+                                               step="0.5"
+                                               min="0"
+                                               :max="availableHours"
+                                               @keyup.enter="saveSubtask(task.id)"
+                                               @keyup.escape="cancelSubtask()">
+                                        <div class="hours-validation" 
+                                             :class="{ 'error': !isValidSubtaskHours, 'info': isValidSubtaskHours }">
+                                            {{ hoursValidationMessage }}
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <input type="text" 
+                                           v-model="newSubtask.observaciones"
+                                           class="new-subtask-input"
+                                           placeholder="Observaciones (opcional)..."
+                                           @keyup.enter="saveSubtask(task.id)"
+                                           @keyup.escape="cancelSubtask()">
+                                </td>
+                                <td class="subtask-resource">
+                                    <span class="no-resource">Sin recurso asignado</span>
+                                </td>
+                                <td>
+                                    <div class="action-buttons">
+                                        <button @click="saveSubtask(task.id)" 
+                                                class="btn btn-success btn-small" 
+                                                title="Guardar subtarea"
+                                                :disabled="!newSubtask.tarea.trim() || !isValidSubtaskHours">
+                                            ✅
+                                        </button>
+                                        <button @click="cancelSubtask()" 
+                                                class="btn btn-secondary btn-small" 
+                                                title="Cancelar">
+                                            ❌
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
                             </template>
                         </tbody>
                     </table>
@@ -827,8 +964,48 @@
                     editingValue: '',
                     editingTaskId: null,
                     editingField: null,
-                    draggedIndex: null
+                    draggedIndex: null,
+                    // Estado para agregar subtareas inline
+                    addingSubtaskTo: null,
+                    newSubtask: {
+                        tarea: '',
+                        horas: 0,
+                        observaciones: ''
+                    }
                 };
+            },
+            
+            computed: {
+                availableHours() {
+                    if (!this.addingSubtaskTo) return 0;
+                    
+                    const parentTask = this.tasks.find(t => t.id === this.addingSubtaskTo);
+                    if (!parentTask) return 0;
+                    
+                    const parentHours = parentTask.horas || 0;
+                    const subtaskHours = parentTask.subtasks ? 
+                        parentTask.subtasks.reduce((sum, sub) => sum + (sub.horas || 0), 0) : 0;
+                    
+                    return Math.max(0, parentHours - subtaskHours);
+                },
+                
+                isValidSubtaskHours() {
+                    const hours = parseFloat(this.newSubtask.horas) || 0;
+                    return hours <= this.availableHours && hours >= 0;
+                },
+                
+                hoursValidationMessage() {
+                    if (!this.addingSubtaskTo) return '';
+                    
+                    const hours = parseFloat(this.newSubtask.horas) || 0;
+                    const available = this.availableHours;
+                    
+                    if (hours > available) {
+                        return `Excede las horas disponibles (${available.toFixed(2)}h restantes)`;
+                    }
+                    
+                    return `${available.toFixed(2)}h disponibles de ${this.tasks.find(t => t.id === this.addingSubtaskTo)?.horas || 0}h total`;
+                }
             },
             
             async mounted() {
@@ -972,31 +1149,64 @@
                     }
                 },
                 
-                async addSubtask(parentId) {
-                    const tarea = prompt('Título de la subtarea:');
-                    if (!tarea) return;
+                addSubtask(parentId) {
+                    // Activar modo de agregar subtarea inline
+                    this.addingSubtaskTo = parentId;
+                    this.newSubtask = {
+                        tarea: '',
+                        horas: 0,
+                        observaciones: ''
+                    };
                     
-                    const horasText = prompt('Horas estimadas:', '0');
-                    const horas = parseFloat(horasText) || 0;
+                    // Asegurar que las subtareas estén expandidas
+                    const task = this.tasks.find(t => t.id === parentId);
+                    if (task) {
+                        task.showSubtasks = true;
+                    }
                     
-                    const observaciones = prompt('Observaciones (opcional):', '') || '';
+                    // Focus en el primer input después de que se renderice
+                    this.$nextTick(() => {
+                        const input = document.querySelector('.new-subtask-input');
+                        if (input) input.focus();
+                    });
+                },
+                
+                async saveSubtask(parentId) {
+                    if (!this.newSubtask.tarea.trim()) {
+                        this.showNotification('El título de la subtarea es requerido', 'error');
+                        return;
+                    }
+                    
+                    // Validar horas
+                    if (!this.isValidSubtaskHours) {
+                        this.showNotification(this.hoursValidationMessage, 'error');
+                        return;
+                    }
                     
                     try {
                         const response = await fetch(`/api/tasks/${parentId}/subtasks`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ tarea, horas, observaciones })
+                            body: JSON.stringify({
+                                tarea: this.newSubtask.tarea.trim(),
+                                horas: parseFloat(this.newSubtask.horas) || 0,
+                                observaciones: this.newSubtask.observaciones.trim()
+                            })
                         });
                         
                         if (response.ok) {
-                            this.showNotification('Subtarea creada exitosamente');
+                            const result = await response.json();
+                            this.showNotification('Subtarea creada exitosamente', 'success');
                             await this.refreshData();
                             
-                            // Expandir automáticamente las subtareas
+                            // Mantener las subtareas expandidas
                             const task = this.tasks.find(t => t.id === parentId);
                             if (task) {
                                 task.showSubtasks = true;
                             }
+                            
+                            // Salir del modo de agregar subtarea
+                            this.addingSubtaskTo = null;
                         } else {
                             const error = await response.json();
                             this.showNotification(error.error || 'Error creando subtarea', 'error');
@@ -1005,6 +1215,15 @@
                         console.error('Error:', error);
                         this.showNotification('Error de conexión', 'error');
                     }
+                },
+                
+                cancelSubtask() {
+                    this.addingSubtaskTo = null;
+                    this.newSubtask = {
+                        tarea: '',
+                        horas: 0,
+                        observaciones: ''
+                    };
                 },
                 
                 async validateTask(taskId) {
