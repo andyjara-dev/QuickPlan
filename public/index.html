@@ -1378,8 +1378,10 @@
                 },
                 
                 async saveEdit() {
+                    if (this._saving) return;
+                    this._saving = true;
                     const inputElement = document.querySelector('.editing input') || document.querySelector('.editing textarea');
-                    if (!inputElement) return;
+                    if (!inputElement) { this._saving = false; return; }
                     
                     const newValue = this.editingField === 'horas' ? 
                         parseFloat(inputElement.value) || 0 : 
@@ -1408,9 +1410,10 @@
                         this.showNotification('Error de conexión', 'error');
                     }
                     
+                    this._saving = false;
                     this.cancelEdit();
                 },
-                
+
                 cancelEdit() {
                     this.editingCell = null;
                     this.editingTaskId = null;
