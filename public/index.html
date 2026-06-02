@@ -627,6 +627,20 @@
 
         .subtask-resource { color: var(--text-faint); font-style: italic; font-size: 0.8rem; }
         .no-resource { font-size: 0.8rem; color: var(--text-faint); }
+
+        /* ── Balance de horas subtareas ── */
+        .subtask-hours-badge {
+            font-size: 11px;
+            margin-top: 5px;
+            padding: 2px 7px;
+            border-radius: 10px;
+            display: inline-block;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+        }
+        .balance-ok    { color: #22c55e; background: rgba(34,197,94,0.13); }
+        .balance-under { color: #f59e0b; background: rgba(245,158,11,0.13); }
+        .balance-over  { color: #ef4444; background: rgba(239,68,68,0.13); }
     </style>
 </head>
 <body>
@@ -833,6 +847,12 @@
                                          :class="{ editing: editingCell === `horas-${task.id}` }"
                                          @click="startEdit(task.id, 'horas', task.horas)">
                                         {{ task.horas }} h
+                                    </div>
+                                    <div v-if="task.subtasks && task.subtasks.length > 0"
+                                         class="subtask-hours-badge"
+                                         :class="hoursBalanceClass(task)"
+                                         :title="hoursBalanceTitle(task)">
+                                        ↳ {{ subtaskHoursSum(task) }}/{{ task.horas }}h
                                     </div>
                                 </td>
                                 <td>
@@ -1290,10 +1310,33 @@
                     if (task) { task.showSubtasks = !task.showSubtasks; }
                 },
 
+                subtaskHoursSum(task) {
+                    return (task.subtasks || []).reduce((s, sub) => s + (parseFloat(sub.horas) || 0), 0);
+                },
+
+                hoursBalanceClass(task) {
+                    const sum = this.subtaskHoursSum(task);
+                    const total = parseFloat(task.horas) || 0;
+                    if (Math.abs(sum - total) < 0.01) return 'balance-ok';
+                    if (sum > total) return 'balance-over';
+                    return 'balance-under';
+                },
+
+                hoursBalanceTitle(task) {
+                    const sum = this.subtaskHoursSum(task);
+                    const total = parseFloat(task.horas) || 0;
+                    const diff = total - sum;
+                    if (Math.abs(diff) < 0.01) return 'Las horas de subtareas cuadran ✓';
+                    if (diff > 0) return `Faltan ${diff.toFixed(1)}h por asignar`;
+                    return `Excede por ${Math.abs(diff).toFixed(1)}h`;
+                },
+
                 addSubtask(parentId) {
                     this.addingSubtaskTo = parentId;
-                    this.newSubtask = { tarea: '', horas: 0, observaciones: '' };
                     const task = this.tasks.find(t => t.id === parentId);
+                    const existingHours = (task?.subtasks || []).reduce((s, sub) => s + (parseFloat(sub.horas) || 0), 0);
+                    const remaining = Math.max(0, (parseFloat(task?.horas) || 0) - existingHours);
+                    this.newSubtask = { tarea: '', horas: remaining, observaciones: '' };
                     if (task) { task.showSubtasks = true; }
                     this.$nextTick(() => {
                         const input = document.querySelector('.new-subtask-input');
