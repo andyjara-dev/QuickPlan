@@ -444,6 +444,30 @@
             background: rgba(79,142,247,0.06);
         }
 
+        .draggable-row.drag-over-nest td {
+            border: 2px solid #22c55e !important;
+            background: rgba(34,197,94,0.08);
+        }
+
+        .subtask-row.draggable-row { cursor: move; }
+
+        .promote-drop-zone {
+            display: none;
+            padding: 8px 16px;
+            margin-bottom: 6px;
+            border: 2px dashed #22c55e;
+            border-radius: 6px;
+            color: #22c55e;
+            text-align: center;
+            font-size: 13px;
+            background: rgba(34,197,94,0.06);
+            transition: background 0.15s;
+        }
+        .promote-drop-zone.active { display: block; }
+        .promote-drop-zone.drag-over-promote {
+            background: rgba(34,197,94,0.18);
+        }
+
         /* ── Subtask toggle ── */
         .subtask-toggle {
             cursor: pointer;
@@ -701,6 +725,15 @@
                     <h3>Sin resultados</h3>
                     <p>No hay tareas que coincidan con el filtro actual.</p>
                 </div>
+                <!-- Zona para promover subtarea a tarea principal -->
+                <div class="promote-drop-zone"
+                     :class="{ active: isDraggingSubtask, 'drag-over-promote': promoteDragOver }"
+                     @dragover.prevent="promoteDragOver = true"
+                     @dragleave="promoteDragOver = false"
+                     @drop.prevent="onDropPromote()">
+                    ↑ Soltar aquí para promover a tarea principal
+                </div>
+
                 <table v-else class="tasks-table">
                     <thead>
                         <tr>
@@ -724,11 +757,12 @@
                             <tr class="draggable-row task-main"
                                 :class="{ 'has-subtasks': task.subtasks && task.subtasks.length > 0 }"
                                 draggable="true"
-                                @dragstart="onDragStart($event, task)"
-                                @dragover="onDragOver($event)"
+                                @dragstart="onDragStart($event, task, false)"
+                                @dragover="onDragOver($event, task)"
                                 @drop="onDrop($event, task)"
                                 @dragenter="onDragEnter($event)"
-                                @dragleave="onDragLeave($event)">
+                                @dragleave="onDragLeave($event)"
+                                @dragend="onDragEnd()">
                                 <td>
                                     <input type="checkbox"
                                            class="row-checkbox"
@@ -812,10 +846,14 @@
                             <template v-if="task.showSubtasks && task.subtasks && task.subtasks.length > 0">
                                 <tr v-for="subtask in task.subtasks"
                                     :key="`sub-${subtask.id}`"
-                                    class="subtask-row">
+                                    class="subtask-row draggable-row"
+                                    draggable="true"
+                                    @dragstart="onDragStart($event, subtask, true)"
+                                    @dragend="onDragEnd()">
                                     <td></td>
                                     <td>
                                         <div class="id-cell subtask-id">
+                                            <span class="drag-handle">⋮⋮</span>
                                             <span class="subtask-indent">↳</span>
                                             #{{ subtask.id }}
                                         </div>
@@ -966,6 +1004,9 @@
                     editingTaskId: null,
                     editingField: null,
                     draggedIndex: null,
+                    draggedTask: null,
+                    isDraggingSubtask: false,
+                    promoteDragOver: false,
                     addingSubtaskTo: null,
                     newSubtask: {
                         tarea: '',
@@ -1185,18 +1226,32 @@
                     }
                 },
 
-                onDragOver(event) {
+                onDragOver(event, targetTask) {
                     event.preventDefault();
                     event.dataTransfer.dropEffect = 'move';
+
+                    const tr = event.currentTarget;
+                    if (!tr) return;
+
+                    const isNestAction = !this.isDraggingSubtask && (() => {
+                        const rect = tr.getBoundingClientRect();
+                        const relY = (event.clientY - rect.top) / rect.height;
+                        return relY > 0.3 && relY < 0.7;
+                    })();
+
+                    tr.classList.toggle('drag-over', !isNestAction);
+                    tr.classList.toggle('drag-over-nest', isNestAction);
                 },
 
                 onDragEnter(event) {
                     event.preventDefault();
-                    event.target.closest('tr').classList.add('drag-over');
                 },
 
                 onDragLeave(event) {
-                    event.target.closest('tr').classList.remove('drag-over');
+                    const tr = event.currentTarget;
+                    if (tr) {
+                        tr.classList.remove('drag-over', 'drag-over-nest');
+                    }
                 },
 
                 toggleSubtasks(taskId) {
@@ -1305,16 +1360,73 @@
                     }
                 },
 
-                onDragStart(event, task) {
+                onDragStart(event, task, isSubtask) {
                     event.dataTransfer.setData('text/plain', task.id.toString());
                     event.dataTransfer.effectAllowed = 'move';
+                    this.draggedTask = task;
+                    this.isDraggingSubtask = !!isSubtask;
+                    this.promoteDragOver = false;
+                },
+
+                onDragEnd() {
+                    this.isDraggingSubtask = false;
+                    this.promoteDragOver = false;
+                    this.draggedTask = null;
+                    document.querySelectorAll('.drag-over, .drag-over-nest').forEach(el => {
+                        el.classList.remove('drag-over', 'drag-over-nest');
+                    });
                 },
 
                 onDrop(event, targetTask) {
                     event.preventDefault();
                     const draggedTaskId = parseInt(event.dataTransfer.getData('text/plain'));
                     if (draggedTaskId === targetTask.id) return;
-                    this.moveTask(draggedTaskId, targetTask.id);
+
+                    const tr = event.currentTarget;
+                    tr.classList.remove('drag-over', 'drag-over-nest');
+
+                    if (this.isDraggingSubtask) {
+                        // Subtarea sobre tarea distinta → reparentar
+                        if (targetTask.is_subtask) return; // target es subtarea, ignorar
+                        this.reparentTask(draggedTaskId, targetTask.id);
+                    } else {
+                        // Tarea principal: zona media = anidar, zonas extremas = reordenar
+                        const rect = tr.getBoundingClientRect();
+                        const relY = (event.clientY - rect.top) / rect.height;
+                        if (relY > 0.3 && relY < 0.7) {
+                            this.reparentTask(draggedTaskId, targetTask.id);
+                        } else {
+                            this.moveTask(draggedTaskId, targetTask.id);
+                        }
+                    }
+                },
+
+                onDropPromote() {
+                    this.promoteDragOver = false;
+                    if (this.draggedTask && this.isDraggingSubtask) {
+                        this.reparentTask(this.draggedTask.id, null);
+                    }
+                },
+
+                async reparentTask(taskId, newParentId) {
+                    try {
+                        const response = await fetch(`/api/tasks/${taskId}/reparent`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ newParentId: newParentId })
+                        });
+                        if (response.ok) {
+                            await this.refreshData();
+                            const msg = newParentId === null ? 'Tarea promovida a tarea principal' : 'Tarea anidada como subtarea';
+                            this.showNotification(msg, 'success');
+                        } else {
+                            const err = await response.json();
+                            this.showNotification(err.error || 'Error al mover tarea', 'error');
+                        }
+                    } catch (error) {
+                        console.error('Error reparentando:', error);
+                        this.showNotification('Error al mover la tarea', 'error');
+                    }
                 },
 
                 async moveTask(draggedTaskId, targetTaskId) {

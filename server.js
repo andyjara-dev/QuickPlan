@@ -571,6 +571,48 @@ app.post('/api/tasks/reorder', (req, res) => {
     });
 });
 
+// Reparentar tarea (convertir en subtarea o promover a tarea principal)
+app.post('/api/tasks/:id/reparent', (req, res) => {
+    const taskId = req.params.id;
+    const { newParentId } = req.body;
+
+    console.log(`🔀 Reparentando tarea ${taskId} → parent=${newParentId}`);
+
+    if (newParentId === null || newParentId === undefined) {
+        // Promover a tarea principal
+        db.run(
+            'UPDATE tasks SET parent_id = NULL, is_subtask = 0 WHERE id = ?',
+            [taskId],
+            function(err) {
+                if (err) return res.status(500).json({ error: err.message });
+                if (this.changes === 0) return res.status(404).json({ error: 'Tarea no encontrada' });
+                invalidateStatsCache();
+                res.json({ message: 'Tarea promovida a tarea principal' });
+            }
+        );
+    } else {
+        // Convertir en subtarea de newParentId
+        // Validar que el target existe y no es subtarea (evitar anidado >1 nivel)
+        db.get('SELECT id, is_subtask FROM tasks WHERE id = ?', [newParentId], (err, parentTask) => {
+            if (err) return res.status(500).json({ error: err.message });
+            if (!parentTask) return res.status(404).json({ error: 'Tarea padre no encontrada' });
+            if (parentTask.is_subtask) return res.status(400).json({ error: 'No se puede anidar más de un nivel' });
+            if (parentTask.id == taskId) return res.status(400).json({ error: 'Una tarea no puede ser su propio padre' });
+
+            db.run(
+                'UPDATE tasks SET parent_id = ?, is_subtask = 1 WHERE id = ?',
+                [newParentId, taskId],
+                function(err) {
+                    if (err) return res.status(500).json({ error: err.message });
+                    if (this.changes === 0) return res.status(404).json({ error: 'Tarea no encontrada' });
+                    invalidateStatsCache();
+                    res.json({ message: 'Tarea convertida en subtarea' });
+                }
+            );
+        });
+    }
+});
+
 // Exportar a Excel
 app.post('/api/export', async (req, res) => {
     try {
