@@ -1607,8 +1607,9 @@
                             body: JSON.stringify(updatedTask)
                         });
                         if (response.ok) {
+                            // Actualizar en memoria sin recargar toda la lista
+                            if (task) task[this.editingField] = newValue;
                             this.showNotification('Tarea actualizada', 'success');
-                            await this.refreshData();
                         } else {
                             const err = await response.json();
                             this.showNotification(err.error || 'Error actualizando tarea', 'error');
@@ -1623,6 +1624,16 @@
                 },
 
                 cancelEdit() {
+                    // Restaurar el contenido original de la celda
+                    // (startEdit reemplaza innerHTML con un input/textarea)
+                    const cell = document.querySelector('.editing');
+                    if (cell) {
+                        if (this.editingField === 'horas') {
+                            cell.textContent = (parseFloat(this.editingValue) || 0) + ' h';
+                        } else {
+                            cell.textContent = this.editingValue || '—';
+                        }
+                    }
                     this.editingCell = null;
                     this.editingTaskId = null;
                     this.editingField = null;
