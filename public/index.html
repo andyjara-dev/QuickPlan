@@ -1564,7 +1564,8 @@
                             cell.innerHTML = '';
                             cell.appendChild(inputElement);
                             inputElement.focus();
-                            inputElement.select();
+                            // Seleccionar todo solo para campos numéricos cortos
+                            if (field === 'horas') inputElement.select();
                             inputElement.addEventListener('blur', () => this.saveEdit());
                             inputElement.addEventListener('keyup', (e) => {
                                 if (e.key === 'Enter' && !useTextarea) this.saveEdit();
