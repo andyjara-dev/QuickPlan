@@ -1134,9 +1134,19 @@
                 async loadTasks() {
                     this.loading = true;
                     try {
+                        // Preservar qué tareas están expandidas antes de recargar
+                        const expandedIds = new Set(
+                            this.tasks.filter(t => t.showSubtasks).map(t => t.id)
+                        );
+
                         const response = await fetch('/api/tasks');
                         if (response.ok) {
-                            this.tasks = await response.json();
+                            const newTasks = await response.json();
+                            // Restaurar estado expandido
+                            newTasks.forEach(t => {
+                                if (expandedIds.has(t.id)) t.showSubtasks = true;
+                            });
+                            this.tasks = newTasks;
                         } else {
                             this.showNotification('Error cargando tareas', 'error');
                         }
@@ -1573,6 +1583,19 @@
                     const newValue = this.editingField === 'horas' ?
                         parseFloat(inputElement.value) || 0 :
                         inputElement.value;
+
+                    // Si el valor no cambió, cancelar sin llamar al servidor
+                    const oldValue = this.editingField === 'horas' ?
+                        parseFloat(this.editingValue) || 0 :
+                        this.editingValue;
+                    const unchanged = this.editingField === 'horas'
+                        ? Math.abs(newValue - oldValue) < 0.001
+                        : String(newValue).trim() === String(oldValue).trim();
+                    if (unchanged) {
+                        this._saving = false;
+                        this.cancelEdit();
+                        return;
+                    }
 
                     try {
                         const task = this.tasks.find(t => t.id === this.editingTaskId) ||
