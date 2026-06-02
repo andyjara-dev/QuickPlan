@@ -148,12 +148,12 @@
         /* ── Form grid ── */
         .form-grid {
             display: grid;
-            grid-template-columns: 2fr 0.8fr 2fr 1.2fr;
+            grid-template-columns: 2fr 0.7fr 2fr 1.1fr 1fr;
             gap: 12px;
             margin-bottom: 14px;
         }
 
-        @media (max-width: 800px) {
+        @media (max-width: 900px) {
             .form-grid { grid-template-columns: 1fr; }
             .stats-container { grid-template-columns: repeat(2, 1fr); }
         }
@@ -190,7 +190,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 16px;
+            margin-bottom: 10px;
             flex-wrap: wrap;
             gap: 10px;
         }
@@ -206,6 +206,79 @@
             display: flex;
             gap: 8px;
             flex-wrap: wrap;
+            align-items: center;
+        }
+
+        /* ── Search bar ── */
+        .search-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
+        }
+
+        .search-input {
+            flex: 1;
+            min-width: 200px;
+            padding: 8px 13px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 0.875rem;
+            font-family: inherit;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--border-focus);
+            box-shadow: 0 0 0 3px rgba(79,142,247,0.1);
+        }
+
+        .search-input::placeholder { color: var(--text-faint); }
+
+        .filter-select {
+            padding: 8px 13px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 0.875rem;
+            font-family: inherit;
+            cursor: pointer;
+        }
+
+        .filter-select:focus { outline: none; border-color: var(--border-focus); }
+
+        /* ── Bulk actions bar ── */
+        .bulk-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            background: rgba(79,142,247,0.08);
+            border: 1px solid rgba(79,142,247,0.25);
+            border-radius: 8px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+
+        .bulk-bar-count {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--accent);
+            white-space: nowrap;
+        }
+
+        .bulk-input {
+            padding: 6px 11px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 0.8rem;
+            font-family: inherit;
+            width: 180px;
         }
 
         /* ── Buttons ── */
@@ -286,10 +359,40 @@
 
         .tasks-table tbody tr:hover td { background: rgba(255,255,255,0.025); }
 
+        .th-check   { width: 36px; }
         .th-id      { width: 70px; }
-        .th-hours   { width: 100px; }
-        .th-resource{ width: 150px; }
+        .th-status  { width: 130px; }
+        .th-hours   { width: 90px; }
+        .th-resource{ width: 140px; }
         .th-actions { width: 160px; }
+
+        /* ── Checkbox ── */
+        .row-checkbox {
+            width: 15px;
+            height: 15px;
+            cursor: pointer;
+            accent-color: var(--accent);
+        }
+
+        /* ── Status select ── */
+        .status-select {
+            padding: 3px 10px;
+            border-radius: 20px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.72rem;
+            font-weight: 600;
+            font-family: inherit;
+            letter-spacing: 0.04em;
+        }
+
+        .status-select:focus { outline: 2px solid var(--border-focus); }
+
+        .status-pending    { background: rgba(100,116,139,0.22); color: #94a3b8; }
+        .status-in_progress{ background: rgba(79,142,247,0.22);  color: #93c5fd; }
+        .status-done       { background: rgba(16,185,129,0.22);  color: #10b981; }
+
+        .status-select option { background: #1e2640; color: #e2e8f0; }
 
         /* ── Editable cells ── */
         .editable-cell {
@@ -532,6 +635,11 @@
                            class="input-field"
                            placeholder="Recurso a cargo*"
                            @keyup.enter="addTask">
+                    <select v-model="newTask.status" class="input-field">
+                        <option value="pending">Pendiente</option>
+                        <option value="in_progress">En progreso</option>
+                        <option value="done">Completada</option>
+                    </select>
                 </div>
                 <button @click="addTask"
                         class="btn btn-primary"
@@ -550,6 +658,38 @@
                 </div>
             </div>
 
+            <!-- Búsqueda y filtros -->
+            <div class="search-row">
+                <input v-model="searchQuery"
+                       class="search-input"
+                       placeholder="🔍 Buscar por tarea, recurso u observaciones…">
+                <select v-model="statusFilter" class="filter-select">
+                    <option value="">Todos los estados</option>
+                    <option value="pending">Pendiente</option>
+                    <option value="in_progress">En progreso</option>
+                    <option value="done">Completada</option>
+                </select>
+                <span v-if="searchQuery || statusFilter"
+                      style="font-size:0.8rem;color:var(--text-muted);align-self:center;">
+                    {{ filteredTasks.length }} resultado(s)
+                </span>
+            </div>
+
+            <!-- Barra de acciones en lote -->
+            <div v-if="selectedTasks.length > 0" class="bulk-bar">
+                <span class="bulk-bar-count">{{ selectedTasks.length }} seleccionada(s)</span>
+                <input v-model="bulkRecurso"
+                       class="bulk-input"
+                       placeholder="Nuevo recurso…">
+                <button @click="bulkReassign"
+                        class="btn btn-info btn-small"
+                        :disabled="!bulkRecurso.trim()">Reasignar</button>
+                <button @click="bulkDelete"
+                        class="btn btn-danger btn-small">🗑️ Eliminar</button>
+                <button @click="selectedTasks = []"
+                        class="btn btn-secondary btn-small">Cancelar</button>
+            </div>
+
             <!-- Tabla de Tareas -->
             <div class="table-container">
                 <div v-if="loading" class="loading">Cargando tareas…</div>
@@ -557,11 +697,21 @@
                     <h3>No hay tareas aún</h3>
                     <p>Agrega tu primera tarea usando el formulario de arriba.</p>
                 </div>
+                <div v-else-if="filteredTasks.length === 0" class="empty-state">
+                    <h3>Sin resultados</h3>
+                    <p>No hay tareas que coincidan con el filtro actual.</p>
+                </div>
                 <table v-else class="tasks-table">
                     <thead>
                         <tr>
+                            <th class="th-check">
+                                <input type="checkbox"
+                                       class="row-checkbox"
+                                       v-model="allSelected">
+                            </th>
                             <th class="th-id">ID</th>
                             <th>Tarea</th>
+                            <th class="th-status">Estado</th>
                             <th class="th-hours">Horas</th>
                             <th>Observaciones</th>
                             <th class="th-resource">Recurso</th>
@@ -569,7 +719,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <template v-for="(task, index) in tasks" :key="task.id">
+                        <template v-for="(task, index) in filteredTasks" :key="task.id">
                             <!-- Fila de tarea principal -->
                             <tr class="draggable-row task-main"
                                 :class="{ 'has-subtasks': task.subtasks && task.subtasks.length > 0 }"
@@ -579,6 +729,12 @@
                                 @drop="onDrop($event, task)"
                                 @dragenter="onDragEnter($event)"
                                 @dragleave="onDragLeave($event)">
+                                <td>
+                                    <input type="checkbox"
+                                           class="row-checkbox"
+                                           :value="task.id"
+                                           v-model="selectedTasks">
+                                </td>
                                 <td>
                                     <div class="id-cell">
                                         <span class="drag-handle">⋮⋮</span>
@@ -596,6 +752,16 @@
                                          @click="startEdit(task.id, 'tarea', task.tarea)">
                                         {{ task.tarea }}
                                     </div>
+                                </td>
+                                <td>
+                                    <select class="status-select"
+                                            :class="`status-${task.status || 'pending'}`"
+                                            :value="task.status || 'pending'"
+                                            @change="updateStatus(task, $event.target.value)">
+                                        <option value="pending">Pendiente</option>
+                                        <option value="in_progress">En progreso</option>
+                                        <option value="done">Completada</option>
+                                    </select>
                                 </td>
                                 <td>
                                     <div class="editable-cell"
@@ -647,6 +813,7 @@
                                 <tr v-for="subtask in task.subtasks"
                                     :key="`sub-${subtask.id}`"
                                     class="subtask-row">
+                                    <td></td>
                                     <td>
                                         <div class="id-cell subtask-id">
                                             <span class="subtask-indent">↳</span>
@@ -659,6 +826,16 @@
                                              @click="startEdit(subtask.id, 'tarea', subtask.tarea)">
                                             {{ subtask.tarea }}
                                         </div>
+                                    </td>
+                                    <td>
+                                        <select class="status-select"
+                                                :class="`status-${subtask.status || 'pending'}`"
+                                                :value="subtask.status || 'pending'"
+                                                @change="updateStatus(subtask, $event.target.value)">
+                                            <option value="pending">Pendiente</option>
+                                            <option value="in_progress">En progreso</option>
+                                            <option value="done">Completada</option>
+                                        </select>
                                     </td>
                                     <td>
                                         <div class="editable-cell"
@@ -689,6 +866,7 @@
 
                             <!-- Nueva subtarea inline -->
                             <tr v-if="addingSubtaskTo === task.id" class="new-subtask-row">
+                                <td></td>
                                 <td>
                                     <div class="id-cell subtask-id">
                                         <span class="subtask-indent">↳</span>
@@ -703,6 +881,7 @@
                                            @keyup.enter="saveSubtask(task.id)"
                                            @keyup.escape="cancelSubtask()">
                                 </td>
+                                <td></td>
                                 <td>
                                     <div class="hours-input-container">
                                         <input type="number"
@@ -751,7 +930,7 @@
 
             <!-- Footer -->
             <div class="footer">
-                <p>QuickPlan v1.0.0 · Node.js + Express + SQLite + Vue.js ·
+                <p>QuickPlan v1.1.0 · Node.js + Express + SQLite + Vue.js ·
                    Desarrollado por <a href="https://andyjara.dev" target="_blank" rel="noopener">andyjara.dev</a>
                 </p>
             </div>
@@ -771,11 +950,16 @@
                     tasks: [],
                     stats: {},
                     loading: false,
+                    searchQuery: '',
+                    statusFilter: '',
+                    selectedTasks: [],
+                    bulkRecurso: '',
                     newTask: {
                         tarea: '',
                         horas: 0,
                         observaciones: '',
-                        recurso: ''
+                        recurso: '',
+                        status: 'pending'
                     },
                     editingCell: null,
                     editingValue: '',
@@ -792,6 +976,37 @@
             },
 
             computed: {
+                filteredTasks() {
+                    let result = this.tasks;
+                    if (this.searchQuery.trim()) {
+                        const q = this.searchQuery.toLowerCase();
+                        result = result.filter(t =>
+                            t.tarea.toLowerCase().includes(q) ||
+                            (t.recurso || '').toLowerCase().includes(q) ||
+                            (t.observaciones || '').toLowerCase().includes(q)
+                        );
+                    }
+                    if (this.statusFilter) {
+                        result = result.filter(t => (t.status || 'pending') === this.statusFilter);
+                    }
+                    return result;
+                },
+
+                allSelected: {
+                    get() {
+                        return this.filteredTasks.length > 0 &&
+                               this.filteredTasks.every(t => this.selectedTasks.includes(t.id));
+                    },
+                    set(val) {
+                        const filteredIds = this.filteredTasks.map(t => t.id);
+                        if (val) {
+                            this.selectedTasks = [...new Set([...this.selectedTasks, ...filteredIds])];
+                        } else {
+                            this.selectedTasks = this.selectedTasks.filter(id => !filteredIds.includes(id));
+                        }
+                    }
+                },
+
                 availableHours() {
                     if (!this.addingSubtaskTo) return 0;
                     const parentTask = this.tasks.find(t => t.id === this.addingSubtaskTo);
@@ -873,6 +1088,66 @@
                     } catch (error) {
                         console.error('Error:', error);
                         this.showNotification('Error de conexión', 'error');
+                    }
+                },
+
+                async updateStatus(task, newStatus) {
+                    const updated = { ...task, status: newStatus };
+                    try {
+                        const response = await fetch(`/api/tasks/${task.id}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(updated)
+                        });
+                        if (response.ok) {
+                            task.status = newStatus;
+                            this.showNotification('Estado actualizado', 'success');
+                        } else {
+                            const err = await response.json();
+                            this.showNotification(err.error || 'Error actualizando estado', 'error');
+                            await this.loadTasks();
+                        }
+                    } catch (e) {
+                        this.showNotification('Error de conexión', 'error');
+                    }
+                },
+
+                async bulkDelete() {
+                    if (!this.selectedTasks.length) return;
+                    if (!confirm(`¿Eliminar ${this.selectedTasks.length} tarea(s) seleccionada(s)?`)) return;
+                    try {
+                        await Promise.all(
+                            this.selectedTasks.map(id => fetch(`/api/tasks/${id}`, { method: 'DELETE' }))
+                        );
+                        this.selectedTasks = [];
+                        this.showNotification('Tareas eliminadas', 'success');
+                        await this.refreshData();
+                    } catch (e) {
+                        this.showNotification('Error eliminando tareas', 'error');
+                    }
+                },
+
+                async bulkReassign() {
+                    if (!this.selectedTasks.length || !this.bulkRecurso.trim()) return;
+                    try {
+                        await Promise.all(
+                            this.selectedTasks.map(id => {
+                                const task = this.tasks.find(t => t.id === id);
+                                if (!task) return Promise.resolve();
+                                return fetch(`/api/tasks/${id}`, {
+                                    method: 'PUT',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ ...task, recurso: this.bulkRecurso.trim() })
+                                });
+                            })
+                        );
+                        const recurso = this.bulkRecurso;
+                        this.bulkRecurso = '';
+                        this.selectedTasks = [];
+                        this.showNotification(`Recurso actualizado a "${recurso}"`, 'success');
+                        await this.refreshData();
+                    } catch (e) {
+                        this.showNotification('Error actualizando recurso', 'error');
                     }
                 },
 
@@ -1000,6 +1275,7 @@
                     try {
                         const response = await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
                         if (response.ok) {
+                            this.selectedTasks = this.selectedTasks.filter(sid => sid !== id);
                             this.showNotification('Tarea eliminada', 'success');
                             await this.refreshData();
                         } else {
@@ -1017,6 +1293,7 @@
                         const response = await fetch('/api/tasks', { method: 'DELETE' });
                         if (response.ok) {
                             const result = await response.json();
+                            this.selectedTasks = [];
                             this.showNotification(result.message || 'Todas las tareas eliminadas', 'success');
                             await this.refreshData();
                         } else {
@@ -1109,7 +1386,8 @@
                         inputElement.value;
 
                     try {
-                        const task = this.tasks.find(t => t.id === this.editingTaskId);
+                        const task = this.tasks.find(t => t.id === this.editingTaskId) ||
+                                     this.tasks.flatMap(t => t.subtasks || []).find(s => s.id === this.editingTaskId);
                         const updatedTask = { ...task, [this.editingField]: newValue };
                         const response = await fetch(`/api/tasks/${this.editingTaskId}`, {
                             method: 'PUT',
@@ -1120,7 +1398,8 @@
                             this.showNotification('Tarea actualizada', 'success');
                             await this.refreshData();
                         } else {
-                            this.showNotification('Error actualizando tarea', 'error');
+                            const err = await response.json();
+                            this.showNotification(err.error || 'Error actualizando tarea', 'error');
                         }
                     } catch (error) {
                         console.error('Error:', error);
@@ -1173,7 +1452,7 @@
                 },
 
                 resetForm() {
-                    this.newTask = { tarea: '', horas: 0, observaciones: '', recurso: '' };
+                    this.newTask = { tarea: '', horas: 0, observaciones: '', recurso: '', status: 'pending' };
                 },
 
                 showNotification(message, type = 'success') {
@@ -1181,7 +1460,9 @@
                     notification.className = `notification ${type}`;
                     notification.textContent = message;
                     document.body.appendChild(notification);
-                    setTimeout(() => { document.body.removeChild(notification); }, 3000);
+                    setTimeout(() => {
+                        if (document.body.contains(notification)) document.body.removeChild(notification);
+                    }, 3000);
                 }
             }
         }).mount('#app');

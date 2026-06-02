@@ -45,6 +45,27 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static('public'));
 
+// Autenticación básica opcional (activar con AUTH_USER y AUTH_PASS env vars)
+if (process.env.AUTH_USER && process.env.AUTH_PASS) {
+    app.use((req, res, next) => {
+        if (req.path === '/health') return next();
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Basic ')) {
+            res.set('WWW-Authenticate', 'Basic realm="QuickPlan"');
+            return res.status(401).send('Autenticación requerida');
+        }
+        const credentials = Buffer.from(authHeader.slice(6), 'base64').toString('utf-8');
+        const colonIdx = credentials.indexOf(':');
+        const user = credentials.slice(0, colonIdx);
+        const pass = credentials.slice(colonIdx + 1);
+        if (user !== process.env.AUTH_USER || pass !== process.env.AUTH_PASS) {
+            res.set('WWW-Authenticate', 'Basic realm="QuickPlan"');
+            return res.status(401).send('Credenciales inválidas');
+        }
+        next();
+    });
+    console.log('🔒 Autenticación básica activada (AUTH_USER / AUTH_PASS)');
+}
 
 // Rate limiting mejorado para resolver 503 intermitente
 const limiter = rateLimit({
@@ -132,6 +153,14 @@ db.run(`
                 console.error('❌ Error agregando columna is_subtask:', err);
             } else if (!err) {
                 console.log('✅ Columna is_subtask agregada');
+            }
+        });
+
+        db.run(`ALTER TABLE tasks ADD COLUMN status TEXT DEFAULT 'pending'`, (err) => {
+            if (err && !err.message.includes('duplicate column name')) {
+                console.error('❌ Error agregando columna status:', err);
+            } else if (!err) {
+                console.log('✅ Columna status agregada');
             }
         });
     }
@@ -377,25 +406,37 @@ app.put('/api/tasks/reorder', (req, res) => {
 });
 
 app.put('/api/tasks/:id', (req, res) => {
-    const { tarea, horas, observaciones, recurso } = req.body;
+    const { tarea, horas, observaciones, recurso, status } = req.body;
     const { id } = req.params;
+    const newHours = parseFloat(horas) || 0;
 
     console.log(`📝 Actualizando tarea ID: ${id}`);
 
-    db.run(
-        'UPDATE tasks SET tarea = ?, horas = ?, observaciones = ?, recurso = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-        [tarea, parseFloat(horas) || 0, observaciones || '', recurso, id],
-        function(err) {
-            if (err) {
-                console.error('❌ Error actualizando tarea:', err);
-                res.status(500).json({ error: err.message });
-                return;
-            }
-            console.log(`✅ Tarea ${id} actualizada`);
-            invalidateStatsCache(); // Invalidar cache al actualizar tarea
-            res.json({ message: 'Tarea actualizada exitosamente' });
+    db.get('SELECT COALESCE(SUM(horas), 0) as subtask_total FROM tasks WHERE parent_id = ?', [id], (err, result) => {
+        if (err) return res.status(500).json({ error: err.message });
+
+        const subtaskTotal = result.subtask_total || 0;
+        if (subtaskTotal > 0 && newHours < subtaskTotal) {
+            return res.status(400).json({
+                error: `Las horas no pueden ser menores que la suma de subtareas (${subtaskTotal.toFixed(2)}h)`
+            });
         }
-    );
+
+        db.run(
+            'UPDATE tasks SET tarea = ?, horas = ?, observaciones = ?, recurso = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+            [tarea, newHours, observaciones || '', recurso || '', status || 'pending', id],
+            function(err) {
+                if (err) {
+                    console.error('❌ Error actualizando tarea:', err);
+                    res.status(500).json({ error: err.message });
+                    return;
+                }
+                console.log(`✅ Tarea ${id} actualizada`);
+                invalidateStatsCache();
+                res.json({ message: 'Tarea actualizada exitosamente' });
+            }
+        );
+    });
 });
 
 // Eliminar todas las tareas
@@ -419,15 +460,20 @@ app.delete('/api/tasks/:id', (req, res) => {
 
     console.log(`🗑️ Eliminando tarea ID: ${id}`);
 
-    db.run('DELETE FROM tasks WHERE id = ?', [id], function(err) {
+    db.run('DELETE FROM tasks WHERE parent_id = ?', [id], function(err) {
         if (err) {
-            console.error('❌ Error eliminando tarea:', err);
-            res.status(500).json({ error: err.message });
-            return;
+            console.error('❌ Error eliminando subtareas:', err);
+            return res.status(500).json({ error: err.message });
         }
-        console.log(`✅ Tarea ${id} eliminada`);
-        invalidateStatsCache(); // Invalidar cache al eliminar tarea
-        res.json({ message: 'Tarea eliminada exitosamente' });
+        db.run('DELETE FROM tasks WHERE id = ?', [id], function(err) {
+            if (err) {
+                console.error('❌ Error eliminando tarea:', err);
+                return res.status(500).json({ error: err.message });
+            }
+            console.log(`✅ Tarea ${id} y sus subtareas eliminadas`);
+            invalidateStatsCache();
+            res.json({ message: 'Tarea eliminada exitosamente' });
+        });
     });
 });
 
@@ -529,141 +575,127 @@ app.post('/api/tasks/reorder', (req, res) => {
 app.post('/api/export', async (req, res) => {
     try {
         const { title, filename } = req.body;
-        
         console.log('📊 Generando reporte Excel:', { title, filename });
-        
-        // Obtener todas las tareas
-        const tasks = await new Promise((resolve, reject) => {
-            db.all('SELECT * FROM tasks ORDER BY sort_order ASC, created_at DESC', (err, rows) => {
+
+        const allRows = await new Promise((resolve, reject) => {
+            db.all('SELECT * FROM tasks ORDER BY CASE WHEN parent_id IS NULL THEN sort_order ELSE parent_id END, parent_id IS NULL DESC, sort_order ASC', (err, rows) => {
                 if (err) reject(err);
                 else resolve(rows);
             });
         });
 
-        // Crear workbook
+        // Construir jerarquía
+        const taskMap = {};
+        const parents = [];
+        allRows.forEach(r => { r.subtasks = []; taskMap[r.id] = r; });
+        allRows.forEach(r => {
+            if (r.parent_id) { if (taskMap[r.parent_id]) taskMap[r.parent_id].subtasks.push(r); }
+            else parents.push(r);
+        });
+
+        const statusLabel = { pending: 'Pendiente', in_progress: 'En progreso', done: 'Completada' };
+
         const workbook = new ExcelJS.Workbook();
-        const worksheet = workbook.addWorksheet('Tareas QuickPlan');
-
-        // Metadatos del archivo
         workbook.creator = 'QuickPlan by andyjara-dev';
-        workbook.lastModifiedBy = 'QuickPlan';
         workbook.created = new Date();
-        workbook.modified = new Date();
 
-        // Configurar columnas
+        const worksheet = workbook.addWorksheet('Tareas QuickPlan');
         worksheet.columns = [
-            { header: 'ID', key: 'id', width: 8 },
-            { header: 'Tarea', key: 'tarea', width: 45 },
-            { header: 'Horas', key: 'horas', width: 12 },
-            { header: 'Observaciones', key: 'observaciones', width: 50 }, // Aumentado para mejor visualización
-            { header: 'Recurso', key: 'recurso', width: 20 },
-            { header: 'Fecha Creación', key: 'created_at', width: 18 }
+            { header: 'ID',            key: 'id',            width: 8  },
+            { header: 'Tarea',         key: 'tarea',         width: 42 },
+            { header: 'Estado',        key: 'status',        width: 14 },
+            { header: 'Horas',         key: 'horas',         width: 10 },
+            { header: 'Observaciones', key: 'observaciones', width: 46 },
+            { header: 'Recurso',       key: 'recurso',       width: 20 },
+            { header: 'Fecha',         key: 'created_at',    width: 14 },
         ];
 
-        // Título principal
+        // Título
         worksheet.insertRow(1, [title || 'Reporte QuickPlan']);
-        worksheet.mergeCells('A1:F1');
+        worksheet.mergeCells('A1:G1');
         const titleCell = worksheet.getCell('A1');
         titleCell.font = { size: 18, bold: true, color: { argb: 'FF2196F3' } };
         titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
-        titleCell.fill = {
-            type: 'pattern',
-            pattern: 'solid',
-            fgColor: { argb: 'FFE3F2FD' }
-        };
+        titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE3F2FD' } };
 
-        // Información del reporte
+        // Fecha
         worksheet.insertRow(2, [`Generado el: ${new Date().toLocaleDateString('es-ES')} a las ${new Date().toLocaleTimeString('es-ES')}`]);
-        worksheet.mergeCells('A2:F2');
+        worksheet.mergeCells('A2:G2');
         const dateCell = worksheet.getCell('A2');
         dateCell.alignment = { horizontal: 'center' };
         dateCell.font = { size: 11, italic: true };
 
         // Resumen
-        const totalHoras = tasks.reduce((sum, task) => sum + (parseFloat(task.horas) || 0), 0);
-        const totalTareas = tasks.length;
-        worksheet.insertRow(3, [`Total de tareas: ${totalTareas} | Horas totales: ${totalHoras} | Por: andyjara-dev`]);
-        worksheet.mergeCells('A3:F3');
+        const totalHoras = parents.reduce((sum, t) => sum + (parseFloat(t.horas) || 0), 0);
+        const totalSubtareas = allRows.filter(r => r.parent_id).length;
+        worksheet.insertRow(3, [`Tareas: ${parents.length} | Subtareas: ${totalSubtareas} | Horas totales: ${totalHoras} | andyjara-dev`]);
+        worksheet.mergeCells('A3:G3');
         const summaryCell = worksheet.getCell('A3');
         summaryCell.alignment = { horizontal: 'center' };
         summaryCell.font = { size: 10, bold: true };
 
-        // Espacio
         worksheet.insertRow(4, []);
 
-        // Agregar datos
-        tasks.forEach(task => {
+        // Filas de datos
+        parents.forEach(task => {
             worksheet.addRow({
                 id: task.id,
                 tarea: task.tarea,
+                status: statusLabel[task.status] || 'Pendiente',
                 horas: parseFloat(task.horas) || 0,
                 observaciones: task.observaciones || '',
                 recurso: task.recurso || '',
                 created_at: new Date(task.created_at).toLocaleDateString('es-ES')
             });
+            task.subtasks.forEach(sub => {
+                worksheet.addRow({
+                    id: sub.id,
+                    tarea: '    ↳ ' + sub.tarea,
+                    status: statusLabel[sub.status] || 'Pendiente',
+                    horas: parseFloat(sub.horas) || 0,
+                    observaciones: sub.observaciones || '',
+                    recurso: sub.recurso || task.recurso || '',
+                    created_at: new Date(sub.created_at).toLocaleDateString('es-ES')
+                });
+            });
         });
 
-        // Estilo para encabezados de datos
+        // Estilo encabezado
         const headerRow = worksheet.getRow(5);
         headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
-        headerRow.fill = {
-            type: 'pattern',
-            pattern: 'solid',
-            fgColor: { argb: 'FF1976D2' }
-        };
+        headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1976D2' } };
         headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
 
-        // Bordes para todas las celdas con datos
-        const dataRange = `A5:F${5 + tasks.length}`;
-        worksheet.getCell(dataRange).border = {
-            top: { style: 'thin' },
-            left: { style: 'thin' },
-            bottom: { style: 'thin' },
-            right: { style: 'thin' }
-        };
+        // Estilo filas de datos
+        let rowIdx = 6;
+        let even = false;
+        parents.forEach(task => {
+            const r = worksheet.getRow(rowIdx);
+            r.font = { size: 9 };
+            r.height = 28;
+            if (even) r.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8F9FA' } };
+            worksheet.getCell(`E${rowIdx}`).alignment = { wrapText: true, vertical: 'top' };
+            rowIdx++;
+            even = !even;
 
-        // Alternar colores de filas y aplicar fuente más pequeña
-        for (let i = 6; i <= 5 + tasks.length; i++) {
-            const row = worksheet.getRow(i);
-            row.font = { size: 9 }; // Fuente más pequeña para las filas de datos
-            row.height = 30; // Altura aumentada para observaciones largas
-            
-            // Aplicar wrap text a la columna de observaciones (columna D)
-            const observacionesCell = worksheet.getCell(`D${i}`);
-            observacionesCell.alignment = { 
-                wrapText: true, 
-                vertical: 'top', 
-                horizontal: 'left' 
-            };
-            
-            if (i % 2 === 0) {
-                row.fill = {
-                    type: 'pattern',
-                    pattern: 'solid',
-                    fgColor: { argb: 'FFF8F9FA' }
-                };
-            }
-        }
-        
-        // También aplicar wrap text al header de observaciones
-        const headerObservacionesCell = worksheet.getCell('D5');
-        headerObservacionesCell.alignment = { 
-            wrapText: true, 
-            vertical: 'middle', 
-            horizontal: 'center' 
-        };
+            task.subtasks.forEach(() => {
+                const sr = worksheet.getRow(rowIdx);
+                sr.font = { size: 9, italic: true };
+                sr.height = 22;
+                sr.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F0FE' } };
+                worksheet.getCell(`E${rowIdx}`).alignment = { wrapText: true, vertical: 'top' };
+                rowIdx++;
+            });
+        });
 
-        // Generar buffer
         const buffer = await workbook.xlsx.writeBuffer();
-        
         console.log(`✅ Excel generado: ${buffer.length} bytes`);
-        
+
         res.set({
             'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             'Content-Disposition': `attachment; filename="${filename || 'quickplan-reporte'}.xlsx"`,
             'Content-Length': buffer.length
         });
-        
         res.send(buffer);
     } catch (error) {
         console.error('❌ Error generando Excel:', error);
