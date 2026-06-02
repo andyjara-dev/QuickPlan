@@ -481,19 +481,50 @@
 
         /* ── Subtask rows ── */
         .subtask-row td {
-            background: rgba(79,142,247,0.04) !important;
-            border-left: 2px solid var(--accent);
+            background: rgba(79,142,247,0.03) !important;
+            border-top: none !important;
+            border-bottom: 1px solid rgba(255,255,255,0.04) !important;
+            vertical-align: top;
+            padding-top: 10px !important;
+            padding-bottom: 10px !important;
         }
 
-        .subtask-id { color: var(--text-muted) !important; font-weight: 400 !important; font-style: italic; }
-        .subtask-indent { color: var(--accent); font-weight: bold; margin-right: 4px; }
+        /* Conector visual solo en la columna ID */
+        .subtask-row td:nth-child(2) {
+            border-left: 3px solid rgba(79,142,247,0.35) !important;
+        }
+
+        .subtask-row:last-of-type td { border-bottom: none !important; }
+
+        .subtask-id {
+            color: var(--text-faint) !important;
+            font-weight: 400 !important;
+            font-size: 11px;
+        }
+        .subtask-indent { color: rgba(79,142,247,0.6); margin-right: 4px; }
+
+        /* Texto de subtarea: textarea-like (wrapping) */
+        .subtask-tarea-display {
+            white-space: pre-wrap;
+            word-break: break-word;
+            line-height: 1.5;
+            font-size: 13px;
+            color: var(--text-main);
+            cursor: pointer;
+            padding: 2px 4px;
+            border-radius: 4px;
+            min-height: 32px;
+        }
+        .subtask-tarea-display:hover { background: rgba(255,255,255,0.04); }
+        .subtask-tarea-display.editing { background: rgba(255,255,255,0.06); }
 
         .task-main.has-subtasks .editable-cell { font-weight: 500; }
 
         /* ── New subtask row ── */
         .new-subtask-row td {
-            background: rgba(16,185,129,0.05) !important;
-            border-left: 2px solid var(--success);
+            background: rgba(16,185,129,0.04) !important;
+            border-left: none !important;
+            border-top: 1px dashed rgba(16,185,129,0.3) !important;
         }
 
         .new-subtask-input {
@@ -859,9 +890,9 @@
                                         </div>
                                     </td>
                                     <td>
-                                        <div class="editable-cell"
+                                        <div class="subtask-tarea-display"
                                              :class="{ editing: editingCell === `tarea-${subtask.id}` }"
-                                             @click="startEdit(subtask.id, 'tarea', subtask.tarea)">
+                                             @click="startEdit(subtask.id, 'tarea', subtask.tarea, true)">
                                             {{ subtask.tarea }}
                                         </div>
                                     </td>
@@ -883,14 +914,14 @@
                                         </div>
                                     </td>
                                     <td>
-                                        <div class="editable-cell"
+                                        <div class="subtask-tarea-display"
                                              :class="{ editing: editingCell === `observaciones-${subtask.id}` }"
-                                             @click="startEdit(subtask.id, 'observaciones', subtask.observaciones)">
+                                             @click="startEdit(subtask.id, 'observaciones', subtask.observaciones, true)">
                                             {{ subtask.observaciones || '—' }}
                                         </div>
                                     </td>
                                     <td class="subtask-resource">
-                                        <span class="no-resource">Sin recurso asignado</span>
+                                        <span class="no-resource">—</span>
                                     </td>
                                     <td>
                                         <div class="action-buttons">
@@ -1448,7 +1479,7 @@
                     }
                 },
 
-                startEdit(taskId, field, currentValue) {
+                startEdit(taskId, field, currentValue, forceTextarea = false) {
                     this.editingCell = `${field}-${taskId}`;
                     this.editingTaskId = taskId;
                     this.editingField = field;
@@ -1458,11 +1489,14 @@
                         const cell = document.querySelector('.editing');
                         if (cell) {
                             let inputElement;
-                            if (field === 'observaciones') {
+                            const useTextarea = forceTextarea || field === 'observaciones';
+                            if (useTextarea) {
                                 inputElement = document.createElement('textarea');
-                                inputElement.rows = 3;
+                                inputElement.rows = field === 'tarea' ? 3 : 3;
                                 inputElement.className = 'input-field textarea-field';
                                 inputElement.style.resize = 'vertical';
+                                inputElement.style.width = '100%';
+                                inputElement.style.minHeight = '60px';
                             } else {
                                 inputElement = document.createElement('input');
                                 inputElement.className = 'input-field';
@@ -1473,14 +1507,14 @@
                             }
                             inputElement.value = currentValue;
                             inputElement.style.margin = '0';
-                            inputElement.style.padding = '4px 8px';
+                            inputElement.style.padding = '6px 8px';
                             cell.innerHTML = '';
                             cell.appendChild(inputElement);
                             inputElement.focus();
                             inputElement.select();
                             inputElement.addEventListener('blur', () => this.saveEdit());
                             inputElement.addEventListener('keyup', (e) => {
-                                if (e.key === 'Enter' && field !== 'observaciones') this.saveEdit();
+                                if (e.key === 'Enter' && !useTextarea) this.saveEdit();
                                 if (e.key === 'Escape') this.cancelEdit();
                             });
                         }
