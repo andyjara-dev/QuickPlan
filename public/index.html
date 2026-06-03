@@ -3,12 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QuickPlan - Gestión de Tareas</title>
+    <title>planning.andyjara.dev</title>
 
-    <!-- Material Icons -->
     <link href="https://fonts.googleapis.com/css?family=Material+Icons" rel="stylesheet" type="text/css">
-
-    <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
@@ -40,6 +37,85 @@
             color: var(--text-primary);
         }
 
+        /* ── Login screen ── */
+        .login-screen {
+            position: fixed; inset: 0;
+            background: var(--bg-base);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+
+        .login-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 48px 56px;
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+        }
+
+        .login-logo {
+            margin: 0 auto 28px;
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        .login-logo img {
+            height: 72px;
+            width: auto;
+            object-fit: contain;
+            filter: drop-shadow(0 4px 16px rgba(37,99,235,0.35));
+        }
+
+        .login-title {
+            font-size: 1.75rem; font-weight: 700;
+            color: var(--text-primary); margin: 0 0 8px;
+        }
+
+        .login-subtitle {
+            font-size: 0.9rem; color: var(--text-muted); margin: 0 0 36px;
+        }
+
+        .btn-google {
+            display: inline-flex; align-items: center; gap: 12px;
+            padding: 13px 28px;
+            background: #fff; color: #1f2937;
+            border: none; border-radius: 10px;
+            font-size: 0.9375rem; font-weight: 600;
+            font-family: inherit; cursor: pointer;
+            text-decoration: none;
+            transition: box-shadow 0.2s, transform 0.1s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            width: 100%; justify-content: center;
+        }
+
+        .btn-google:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.4); transform: translateY(-1px); }
+        .btn-google:active { transform: translateY(0); }
+
+        .google-icon {
+            width: 20px; height: 20px;
+            background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cpath fill='%23EA4335' d='M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z'/%3E%3Cpath fill='%234285F4' d='M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z'/%3E%3Cpath fill='%23FBBC05' d='M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z'/%3E%3Cpath fill='%2334A853' d='M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z'/%3E%3Cpath fill='none' d='M0 0h48v48H0z'/%3E%3C/svg%3E") center/contain no-repeat;
+            flex-shrink: 0;
+        }
+
+        .login-spinner {
+            display: flex; align-items: center; justify-content: center;
+            gap: 8px; color: var(--text-muted); font-size: 0.9rem;
+        }
+
+        .spinner {
+            width: 20px; height: 20px;
+            border: 2px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
         /* ── Layout ── */
         .app-wrapper {
             max-width: 1280px;
@@ -54,39 +130,194 @@
             gap: 14px;
             padding: 28px 0 24px;
             border-bottom: 1px solid var(--border);
-            margin-bottom: 28px;
+            margin-bottom: 0;
         }
 
         .header-logo {
-            width: 40px;
-            height: 40px;
-            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dim) 100%);
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
+            display: flex; align-items: center;
             flex-shrink: 0;
         }
 
+        .header-logo img {
+            height: 44px;
+            width: auto;
+            object-fit: contain;
+            filter: drop-shadow(0 2px 8px rgba(37,99,235,0.3));
+        }
+
         .header-title {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: var(--text-primary);
-            margin: 0;
+            font-size: 1.5rem; font-weight: 700;
+            color: var(--text-primary); margin: 0;
         }
 
         .header-subtitle {
-            font-size: 0.78rem;
-            color: var(--text-muted);
-            margin: 2px 0 0;
+            font-size: 0.78rem; color: var(--text-muted); margin: 2px 0 0;
         }
 
-        .header-brand {
+        .header-user {
             margin-left: auto;
-            font-size: 0.75rem;
-            color: var(--text-faint);
+            display: flex; align-items: center; gap: 10px;
         }
+
+        .user-avatar {
+            width: 36px; height: 36px;
+            border-radius: 50%;
+            border: 2px solid var(--border);
+            object-fit: cover;
+        }
+
+        .user-avatar-placeholder {
+            width: 36px; height: 36px;
+            border-radius: 50%;
+            background: var(--accent-dim);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; font-weight: 700; color: #fff;
+            flex-shrink: 0;
+        }
+
+        .user-name {
+            font-size: 0.85rem; font-weight: 600; color: var(--text-primary);
+            max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+
+        .user-username {
+            font-size: 0.72rem; color: var(--text-muted);
+        }
+
+        /* ── Shared plan banner ── */
+        .shared-banner {
+            display: flex; align-items: center; gap: 12px;
+            padding: 10px 18px;
+            background: rgba(245,158,11,0.1);
+            border: 1px solid rgba(245,158,11,0.3);
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .shared-banner-icon { font-size: 18px; }
+
+        .shared-banner-text {
+            font-size: 0.84rem; color: var(--warning); flex: 1;
+        }
+
+        .badge-readonly {
+            background: rgba(100,116,139,0.25); color: var(--text-muted);
+            font-size: 0.7rem; font-weight: 700; letter-spacing: 0.05em;
+            padding: 2px 8px; border-radius: 20px;
+        }
+
+        .badge-edit {
+            background: rgba(16,185,129,0.2); color: var(--success);
+            font-size: 0.7rem; font-weight: 700; letter-spacing: 0.05em;
+            padding: 2px 8px; border-radius: 20px;
+        }
+
+        /* ── Modal overlay ── */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.6);
+            display: flex; align-items: flex-start; justify-content: center;
+            z-index: 1000;
+            padding: 40px 16px;
+            overflow-y: auto;
+        }
+
+        .modal {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            width: 100%; max-width: 560px;
+            box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+        }
+
+        .modal-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .modal-title { font-size: 1rem; font-weight: 700; margin: 0; }
+
+        .modal-close {
+            background: none; border: none; color: var(--text-muted);
+            cursor: pointer; font-size: 20px; padding: 4px; line-height: 1;
+            border-radius: 6px; transition: color 0.15s;
+        }
+        .modal-close:hover { color: var(--text-primary); }
+
+        .modal-body { padding: 20px 24px; }
+
+        .modal-section { margin-bottom: 24px; }
+
+        .modal-section-title {
+            font-size: 0.72rem; font-weight: 700; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 0.08em;
+            margin: 0 0 12px;
+        }
+
+        /* ── Share list items ── */
+        .share-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 12px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+
+        .share-item-info { flex: 1; min-width: 0; }
+
+        .share-item-name {
+            font-size: 0.875rem; font-weight: 600; color: var(--text-primary);
+        }
+
+        .share-item-meta {
+            font-size: 0.75rem; color: var(--text-muted);
+            display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+            margin-top: 2px;
+        }
+
+        .share-item-actions { display: flex; gap: 4px; flex-shrink: 0; }
+
+        .empty-shares {
+            text-align: center; padding: 16px;
+            color: var(--text-faint); font-size: 0.84rem;
+        }
+
+        /* ── Search results ── */
+        .search-result-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 12px;
+            border-radius: 8px; cursor: pointer;
+            transition: background 0.15s;
+            border: 1px solid transparent;
+        }
+
+        .search-result-item:hover {
+            background: var(--bg-elevated); border-color: var(--border);
+        }
+
+        .search-result-item.selected {
+            background: rgba(79,142,247,0.1); border-color: rgba(79,142,247,0.4);
+        }
+
+        .invite-form {
+            padding: 12px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-top: 8px;
+        }
+
+        .invite-form-row {
+            display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap;
+        }
+
+        .invite-form-field { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 120px; }
+
+        .invite-form-label { font-size: 0.72rem; color: var(--text-muted); font-weight: 600; }
 
         /* ── Stat Cards ── */
         .stats-container {
@@ -94,6 +325,7 @@
             grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
             gap: 16px;
             margin-bottom: 24px;
+            margin-top: 20px;
         }
 
         .stat-card {
@@ -101,56 +333,26 @@
             border: 1px solid var(--border);
             border-radius: 12px;
             padding: 20px 22px;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
+            display: flex; flex-direction: column; gap: 6px;
         }
 
-        .stat-label {
-            font-size: 0.72rem;
-            font-weight: 600;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-        }
-
-        .stat-number {
-            font-size: 2rem;
-            font-weight: 700;
-            color: var(--text-primary);
-            line-height: 1;
-        }
-
-        .stat-icon {
-            font-size: 16px;
-            color: var(--accent);
-            margin-bottom: 4px;
-        }
+        .stat-label { font-size: 0.72rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; }
+        .stat-number { font-size: 2rem; font-weight: 700; color: var(--text-primary); line-height: 1; }
+        .stat-icon { font-size: 16px; color: var(--accent); margin-bottom: 4px; }
 
         /* ── Section card ── */
         .card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 24px;
-            margin-bottom: 20px;
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 12px; padding: 24px; margin-bottom: 20px;
         }
 
-        .card-title {
-            font-size: 0.875rem;
-            font-weight: 600;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            margin: 0 0 18px;
-        }
+        .card-title { font-size: 0.875rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin: 0 0 18px; }
 
         /* ── Form grid ── */
         .form-grid {
             display: grid;
             grid-template-columns: 2fr 0.7fr 2fr 1.1fr 1fr;
-            gap: 12px;
-            margin-bottom: 14px;
+            gap: 12px; margin-bottom: 14px;
         }
 
         @media (max-width: 900px) {
@@ -160,141 +362,71 @@
 
         /* ── Inputs ── */
         .input-field {
-            width: 100%;
-            padding: 9px 13px;
-            background: var(--bg-input);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            color: var(--text-primary);
-            font-size: 0.875rem;
-            font-family: inherit;
+            width: 100%; padding: 9px 13px;
+            background: var(--bg-input); border: 1px solid var(--border);
+            border-radius: 8px; color: var(--text-primary);
+            font-size: 0.875rem; font-family: inherit;
             transition: border-color 0.2s, box-shadow 0.2s;
         }
 
         .input-field::placeholder { color: var(--text-faint); }
 
         .input-field:focus {
-            outline: none;
-            border-color: var(--border-focus);
+            outline: none; border-color: var(--border-focus);
             box-shadow: 0 0 0 3px rgba(79,142,247,0.12);
         }
 
-        .textarea-field {
-            resize: vertical;
-            min-height: 60px;
-            line-height: 1.4;
-        }
+        .textarea-field { resize: vertical; min-height: 60px; line-height: 1.4; }
 
         /* ── Actions bar ── */
         .actions-bar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-            flex-wrap: wrap;
-            gap: 10px;
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 10px; flex-wrap: wrap; gap: 10px;
         }
 
-        .section-title {
-            font-size: 1rem;
-            font-weight: 600;
-            color: var(--text-primary);
-            margin: 0;
-        }
+        .section-title { font-size: 1rem; font-weight: 600; color: var(--text-primary); margin: 0; }
 
-        .action-group {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            align-items: center;
-        }
+        .action-group { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 
         /* ── Search bar ── */
-        .search-row {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 14px;
-            flex-wrap: wrap;
-        }
+        .search-row { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
 
         .search-input {
-            flex: 1;
-            min-width: 200px;
-            padding: 8px 13px;
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            color: var(--text-primary);
-            font-size: 0.875rem;
-            font-family: inherit;
+            flex: 1; min-width: 200px; padding: 8px 13px;
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 8px; color: var(--text-primary); font-size: 0.875rem; font-family: inherit;
         }
 
-        .search-input:focus {
-            outline: none;
-            border-color: var(--border-focus);
-            box-shadow: 0 0 0 3px rgba(79,142,247,0.1);
-        }
-
+        .search-input:focus { outline: none; border-color: var(--border-focus); box-shadow: 0 0 0 3px rgba(79,142,247,0.1); }
         .search-input::placeholder { color: var(--text-faint); }
 
         .filter-select {
-            padding: 8px 13px;
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            color: var(--text-primary);
-            font-size: 0.875rem;
-            font-family: inherit;
-            cursor: pointer;
+            padding: 8px 13px; background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 8px; color: var(--text-primary); font-size: 0.875rem; font-family: inherit; cursor: pointer;
         }
-
         .filter-select:focus { outline: none; border-color: var(--border-focus); }
 
         /* ── Bulk actions bar ── */
         .bulk-bar {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 10px 14px;
-            background: rgba(79,142,247,0.08);
-            border: 1px solid rgba(79,142,247,0.25);
-            border-radius: 8px;
-            margin-bottom: 10px;
-            flex-wrap: wrap;
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 14px; background: rgba(79,142,247,0.08);
+            border: 1px solid rgba(79,142,247,0.25); border-radius: 8px;
+            margin-bottom: 10px; flex-wrap: wrap;
         }
 
-        .bulk-bar-count {
-            font-size: 0.85rem;
-            font-weight: 600;
-            color: var(--accent);
-            white-space: nowrap;
-        }
+        .bulk-bar-count { font-size: 0.85rem; font-weight: 600; color: var(--accent); white-space: nowrap; }
 
         .bulk-input {
-            padding: 6px 11px;
-            background: var(--bg-input);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            color: var(--text-primary);
-            font-size: 0.8rem;
-            font-family: inherit;
-            width: 180px;
+            padding: 6px 11px; background: var(--bg-input); border: 1px solid var(--border);
+            border-radius: 6px; color: var(--text-primary); font-size: 0.8rem; font-family: inherit; width: 180px;
         }
 
         /* ── Buttons ── */
         .btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 8px 16px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 500;
-            font-size: 0.8125rem;
-            font-family: inherit;
-            transition: all 0.2s ease;
-            white-space: nowrap;
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 8px 16px; border: none; border-radius: 8px;
+            cursor: pointer; font-weight: 500; font-size: 0.8125rem;
+            font-family: inherit; transition: all 0.2s ease; white-space: nowrap;
         }
 
         .btn:disabled { opacity: 0.45; cursor: not-allowed; }
@@ -323,40 +455,26 @@
         .btn-small { padding: 5px 9px; font-size: 0.75rem; border-radius: 6px; }
 
         /* ── Table ── */
-        .table-container {
-            overflow-x: auto;
-            border-radius: 10px;
-            border: 1px solid var(--border);
-        }
+        .table-container { overflow-x: auto; border-radius: 10px; border: 1px solid var(--border); }
 
         .tasks-table {
-            width: 100%;
-            border-collapse: collapse;
-            background: var(--bg-card);
-            font-size: 0.875rem;
+            width: 100%; border-collapse: collapse;
+            background: var(--bg-card); font-size: 0.875rem;
         }
 
         .tasks-table th {
-            background: var(--bg-elevated);
-            color: var(--text-muted);
-            padding: 12px 14px;
-            text-align: left;
-            font-size: 0.72rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            border-bottom: 1px solid var(--border);
+            background: var(--bg-elevated); color: var(--text-muted);
+            padding: 12px 14px; text-align: left;
+            font-size: 0.72rem; font-weight: 600; text-transform: uppercase;
+            letter-spacing: 0.06em; border-bottom: 1px solid var(--border);
         }
 
         .tasks-table td {
-            padding: 11px 14px;
-            border-bottom: 1px solid var(--border);
-            vertical-align: middle;
-            color: var(--text-primary);
+            padding: 11px 14px; border-bottom: 1px solid var(--border);
+            vertical-align: middle; color: var(--text-primary);
         }
 
         .tasks-table tbody tr:last-child td { border-bottom: none; }
-
         .tasks-table tbody tr:hover td { background: rgba(255,255,255,0.025); }
 
         .th-check   { width: 36px; }
@@ -366,277 +484,125 @@
         .th-resource{ width: 140px; }
         .th-actions { width: 160px; }
 
-        /* ── Checkbox ── */
-        .row-checkbox {
-            width: 15px;
-            height: 15px;
-            cursor: pointer;
-            accent-color: var(--accent);
-        }
+        .row-checkbox { width: 15px; height: 15px; cursor: pointer; accent-color: var(--accent); }
 
-        /* ── Status select ── */
         .status-select {
-            padding: 3px 10px;
-            border-radius: 20px;
-            border: none;
-            cursor: pointer;
-            font-size: 0.72rem;
-            font-weight: 600;
-            font-family: inherit;
-            letter-spacing: 0.04em;
+            padding: 3px 10px; border-radius: 20px; border: none;
+            cursor: pointer; font-size: 0.72rem; font-weight: 600; font-family: inherit; letter-spacing: 0.04em;
         }
-
         .status-select:focus { outline: 2px solid var(--border-focus); }
-
         .status-pending    { background: rgba(100,116,139,0.22); color: #94a3b8; }
         .status-in_progress{ background: rgba(79,142,247,0.22);  color: #93c5fd; }
         .status-done       { background: rgba(16,185,129,0.22);  color: #10b981; }
-
         .status-select option { background: #1e2640; color: #e2e8f0; }
 
-        /* ── Editable cells ── */
         .editable-cell {
-            cursor: pointer;
-            padding: 6px 8px;
-            border: 1.5px solid transparent;
-            border-radius: 6px;
-            min-height: 22px;
-            transition: all 0.15s;
+            cursor: pointer; padding: 6px 8px; border: 1.5px solid transparent;
+            border-radius: 6px; min-height: 22px; transition: all 0.15s;
         }
+        .editable-cell:hover { background: rgba(79,142,247,0.08); border-color: rgba(79,142,247,0.3); }
+        .editing { background: var(--bg-input); border-color: var(--border-focus); }
 
-        .editable-cell:hover {
-            background: rgba(79,142,247,0.08);
-            border-color: rgba(79,142,247,0.3);
-        }
+        .editable-cell.readonly { cursor: default; }
+        .editable-cell.readonly:hover { background: none; border-color: transparent; }
 
-        .editing {
-            background: var(--bg-input);
-            border-color: var(--border-focus);
-        }
+        .id-cell { font-weight: 600; color: var(--accent); display: flex; align-items: center; gap: 4px; }
 
-        /* ── ID cell ── */
-        .id-cell {
-            font-weight: 600;
-            color: var(--accent);
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        /* ── Drag ── */
         .draggable-row { cursor: move; }
-
-        .drag-handle {
-            color: var(--text-faint);
-            font-size: 14px;
-            cursor: grab;
-            user-select: none;
-            flex-shrink: 0;
-        }
-
+        .drag-handle { color: var(--text-faint); font-size: 14px; cursor: grab; user-select: none; flex-shrink: 0; }
         .drag-handle:hover { color: var(--accent); }
         .drag-handle:active { cursor: grabbing; }
-
         .draggable-row.dragging { opacity: 0.4; }
-
-        .draggable-row.drag-over td {
-            border-top: 2px solid var(--accent) !important;
-            background: rgba(79,142,247,0.06);
-        }
-
-        .draggable-row.drag-over-nest td {
-            border: 2px solid #22c55e !important;
-            background: rgba(34,197,94,0.08);
-        }
-
+        .draggable-row.drag-over td { border-top: 2px solid var(--accent) !important; background: rgba(79,142,247,0.06); }
+        .draggable-row.drag-over-nest td { border: 2px solid #22c55e !important; background: rgba(34,197,94,0.08); }
         .subtask-row.draggable-row { cursor: move; }
 
         .promote-drop-zone {
-            display: none;
-            padding: 8px 16px;
-            margin-bottom: 6px;
-            border: 2px dashed #22c55e;
-            border-radius: 6px;
-            color: #22c55e;
-            text-align: center;
-            font-size: 13px;
-            background: rgba(34,197,94,0.06);
-            transition: background 0.15s;
+            display: none; padding: 8px 16px; margin-bottom: 6px;
+            border: 2px dashed #22c55e; border-radius: 6px; color: #22c55e;
+            text-align: center; font-size: 13px; background: rgba(34,197,94,0.06); transition: background 0.15s;
         }
         .promote-drop-zone.active { display: block; }
-        .promote-drop-zone.drag-over-promote {
-            background: rgba(34,197,94,0.18);
-        }
+        .promote-drop-zone.drag-over-promote { background: rgba(34,197,94,0.18); }
 
-        /* ── Subtask toggle ── */
-        .subtask-toggle {
-            cursor: pointer;
-            color: var(--accent);
-            font-weight: bold;
-            user-select: none;
-            font-size: 12px;
-        }
-
+        .subtask-toggle { cursor: pointer; color: var(--accent); font-weight: bold; user-select: none; font-size: 12px; }
         .subtask-toggle:hover { color: #93c5fd; }
 
-        /* ── Subtask rows ── */
         .subtask-row td {
-            background: rgba(79,142,247,0.03) !important;
-            border-top: none !important;
+            background: rgba(79,142,247,0.03) !important; border-top: none !important;
             border-bottom: 1px solid rgba(255,255,255,0.04) !important;
-            vertical-align: top;
-            padding-top: 10px !important;
-            padding-bottom: 10px !important;
+            vertical-align: top; padding-top: 10px !important; padding-bottom: 10px !important;
         }
-
-        /* Conector visual solo en la columna ID */
-        .subtask-row td:nth-child(2) {
-            border-left: 3px solid rgba(79,142,247,0.35) !important;
-        }
-
+        .subtask-row td:nth-child(2) { border-left: 3px solid rgba(79,142,247,0.35) !important; }
         .subtask-row:last-of-type td { border-bottom: none !important; }
 
-        .subtask-id {
-            color: var(--text-faint) !important;
-            font-weight: 400 !important;
-            font-size: 11px;
-        }
+        .subtask-id { color: var(--text-faint) !important; font-weight: 400 !important; font-size: 11px; }
         .subtask-indent { color: rgba(79,142,247,0.6); margin-right: 4px; }
 
-        /* Texto de subtarea: textarea-like (wrapping) */
         .subtask-tarea-display {
-            white-space: pre-wrap;
-            word-break: break-word;
-            line-height: 1.5;
-            font-size: 13px;
-            color: var(--text-main);
-            cursor: pointer;
-            padding: 2px 4px;
-            border-radius: 4px;
-            min-height: 32px;
+            white-space: pre-wrap; word-break: break-word; line-height: 1.5;
+            font-size: 13px; color: var(--text-main); cursor: pointer;
+            padding: 2px 4px; border-radius: 4px; min-height: 32px;
         }
         .subtask-tarea-display:hover { background: rgba(255,255,255,0.04); }
         .subtask-tarea-display.editing { background: rgba(255,255,255,0.06); }
+        .subtask-tarea-display.readonly { cursor: default; }
+        .subtask-tarea-display.readonly:hover { background: none; }
 
         .task-main.has-subtasks .editable-cell { font-weight: 500; }
 
-        /* ── New subtask row ── */
         .new-subtask-row td {
-            background: rgba(16,185,129,0.04) !important;
-            border-left: none !important;
+            background: rgba(16,185,129,0.04) !important; border-left: none !important;
             border-top: 1px dashed rgba(16,185,129,0.3) !important;
         }
 
         .new-subtask-input {
-            width: 100%;
-            padding: 7px 10px;
-            background: var(--bg-input);
-            border: 1px solid var(--success);
-            border-radius: 6px;
-            color: var(--text-primary);
-            font-size: 0.875rem;
-            font-family: inherit;
+            width: 100%; padding: 7px 10px;
+            background: var(--bg-input); border: 1px solid var(--success);
+            border-radius: 6px; color: var(--text-primary); font-size: 0.875rem; font-family: inherit;
         }
-
-        .new-subtask-input:focus {
-            outline: none;
-            box-shadow: 0 0 0 3px rgba(16,185,129,0.2);
-        }
-
+        .new-subtask-input:focus { outline: none; box-shadow: 0 0 0 3px rgba(16,185,129,0.2); }
         .new-subtask-input::placeholder { color: var(--text-faint); font-style: italic; }
 
-        .new-badge {
-            background: var(--success);
-            color: white;
-            padding: 2px 6px;
-            border-radius: 20px;
-            font-size: 9px;
-            font-weight: 700;
-            letter-spacing: 0.05em;
-        }
+        .new-badge { background: var(--success); color: white; padding: 2px 6px; border-radius: 20px; font-size: 9px; font-weight: 700; letter-spacing: 0.05em; }
 
-        /* ── Hours validation ── */
-        .hours-validation {
-            font-size: 0.72rem;
-            margin-top: 4px;
-            padding: 3px 7px;
-            border-radius: 4px;
-        }
-
-        .hours-validation.error {
-            color: var(--danger);
-            background: rgba(239,68,68,0.12);
-        }
-
-        .hours-validation.info {
-            color: var(--success);
-            background: rgba(16,185,129,0.1);
-        }
-
+        .hours-validation { font-size: 0.72rem; margin-top: 4px; padding: 3px 7px; border-radius: 4px; }
+        .hours-validation.error { color: var(--danger); background: rgba(239,68,68,0.12); }
+        .hours-validation.info  { color: var(--success); background: rgba(16,185,129,0.1); }
         .hours-invalid { border-color: var(--danger) !important; }
 
-        /* ── Action buttons ── */
         .action-buttons { display: flex; gap: 4px; flex-wrap: nowrap; }
 
-        /* ── Empty / Loading ── */
-        .loading, .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-            color: var(--text-muted);
-        }
-
+        .loading, .empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); }
         .empty-state h3 { color: var(--text-primary); margin-bottom: 8px; }
 
-        /* ── Notification ── */
         .notification {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 12px 18px;
-            border-radius: 8px;
-            color: white;
-            font-weight: 500;
-            font-size: 0.875rem;
-            z-index: 1000;
-            animation: slideIn 0.25s ease;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-            max-width: 320px;
+            position: fixed; top: 20px; right: 20px;
+            padding: 12px 18px; border-radius: 8px;
+            color: white; font-weight: 500; font-size: 0.875rem;
+            z-index: 2000; animation: slideIn 0.25s ease;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.4); max-width: 320px;
         }
-
         .notification.success { background: var(--success); }
         .notification.error   { background: var(--danger); }
         .notification.warning { background: var(--warning); color: #111; }
 
-        @keyframes slideIn {
-            from { transform: translateX(110%); opacity: 0; }
-            to   { transform: translateX(0);    opacity: 1; }
-        }
+        @keyframes slideIn { from { transform: translateX(110%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
-        /* ── Footer ── */
         .footer {
-            text-align: center;
-            padding: 24px 0 0;
-            color: var(--text-faint);
-            font-size: 0.78rem;
-            border-top: 1px solid var(--border);
-            margin-top: 32px;
+            text-align: center; padding: 24px 0 0;
+            color: var(--text-faint); font-size: 0.78rem;
+            border-top: 1px solid var(--border); margin-top: 32px;
         }
-
         .footer a { color: var(--accent); text-decoration: none; }
         .footer a:hover { text-decoration: underline; }
 
         .subtask-resource { color: var(--text-faint); font-style: italic; font-size: 0.8rem; }
         .no-resource { font-size: 0.8rem; color: var(--text-faint); }
 
-        /* ── Balance de horas subtareas ── */
         .subtask-hours-badge {
-            font-size: 11px;
-            margin-top: 5px;
-            padding: 2px 7px;
-            border-radius: 10px;
-            display: inline-block;
-            font-weight: 600;
-            letter-spacing: 0.02em;
+            font-size: 11px; margin-top: 5px; padding: 2px 7px;
+            border-radius: 10px; display: inline-block; font-weight: 600; letter-spacing: 0.02em;
         }
         .balance-ok    { color: #22c55e; background: rgba(34,197,94,0.13); }
         .balance-under { color: #f59e0b; background: rgba(245,158,11,0.13); }
@@ -645,16 +611,208 @@
 </head>
 <body>
     <div id="app">
-        <div class="app-wrapper">
+
+        <!-- Pantalla de login -->
+        <div v-if="!currentUser" class="login-screen">
+            <div class="login-card">
+                <div class="login-logo">
+                    <img src="/logo.png" alt="planning.andyjara.dev">
+                </div>
+                <p class="login-subtitle">Sistema de gestión de tareas colaborativo</p>
+
+                <div v-if="isAuthLoading" class="login-spinner">
+                    <div class="spinner"></div>
+                    Verificando sesión…
+                </div>
+                <a v-else href="/auth/google" class="btn-google">
+                    <span class="google-icon"></span>
+                    Iniciar sesión con Google
+                </a>
+            </div>
+        </div>
+
+        <!-- Diálogo de compartición -->
+        <div v-if="showShareDialog" class="modal-overlay" @click.self="showShareDialog = false">
+            <div class="modal">
+                <div class="modal-header">
+                    <h2 class="modal-title">🔗 Compartir mi plan</h2>
+                    <button class="modal-close" @click="showShareDialog = false">✕</button>
+                </div>
+                <div class="modal-body">
+
+                    <!-- Planes compartidos conmigo -->
+                    <div class="modal-section" v-if="sharedWithMe.length > 0">
+                        <p class="modal-section-title">Planes compartidos conmigo</p>
+                        <div v-for="share in sharedWithMe" :key="share.id" class="share-item">
+                            <div v-if="share.owner_avatar" style="width:32px;height:32px;border-radius:50%;overflow:hidden;flex-shrink:0;">
+                                <img :src="share.owner_avatar" style="width:100%;height:100%;object-fit:cover;" referrerpolicy="no-referrer">
+                            </div>
+                            <div v-else class="user-avatar-placeholder" style="width:32px;height:32px;font-size:12px;">{{ share.owner_name[0] }}</div>
+                            <div class="share-item-info">
+                                <div class="share-item-name">{{ share.owner_name }}</div>
+                                <div class="share-item-meta">
+                                    <span>@{{ share.owner_username }}</span>
+                                    <span :class="share.permission === 'read' ? 'badge-readonly' : 'badge-edit'">
+                                        {{ share.permission === 'read' ? 'Solo lectura' : 'Edición' }}
+                                    </span>
+                                    <span v-if="share.expires_at" style="color:var(--warning);">
+                                        Vence: {{ formatDate(share.expires_at) }}
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="share-item-actions">
+                                <button class="btn btn-info btn-small" @click="viewSharedPlan(share)">Ver plan</button>
+                                <button class="btn btn-secondary btn-small" @click="leaveShare(share.id)">Salir</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Mis comparticiones -->
+                    <div class="modal-section">
+                        <p class="modal-section-title">Compartido con</p>
+                        <div v-if="myShares.length === 0" class="empty-shares">
+                            Aún no has compartido tu plan con nadie.
+                        </div>
+                        <div v-for="share in myShares" :key="share.id" class="share-item">
+                            <div v-if="share.shared_with_avatar" style="width:32px;height:32px;border-radius:50%;overflow:hidden;flex-shrink:0;">
+                                <img :src="share.shared_with_avatar" style="width:100%;height:100%;object-fit:cover;" referrerpolicy="no-referrer">
+                            </div>
+                            <div v-else class="user-avatar-placeholder" style="width:32px;height:32px;font-size:12px;">{{ share.shared_with_name[0] }}</div>
+                            <div class="share-item-info">
+                                <div class="share-item-name">{{ share.shared_with_name }}</div>
+                                <div class="share-item-meta">
+                                    <span>@{{ share.shared_with_username }}</span>
+                                    <span :class="share.permission === 'read' ? 'badge-readonly' : 'badge-edit'">
+                                        {{ share.permission === 'read' ? 'Solo lectura' : 'Edición' }}
+                                    </span>
+                                    <span v-if="share.expires_at" style="color:var(--warning);">
+                                        Vence: {{ formatDate(share.expires_at) }}
+                                    </span>
+                                    <span v-else style="color:var(--text-faint);">Sin vencimiento</span>
+                                </div>
+                            </div>
+                            <div class="share-item-actions">
+                                <button class="btn btn-secondary btn-small" @click="editShare(share)">✏️</button>
+                                <button class="btn btn-danger btn-small" @click="revokeShare(share.id)">✕</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Editar compartición -->
+                    <div v-if="editingShare" class="modal-section" style="border-top:1px solid var(--border);padding-top:16px;">
+                        <p class="modal-section-title">Editar acceso para {{ editingShare.shared_with_name }}</p>
+                        <div class="invite-form">
+                            <div class="invite-form-row">
+                                <div class="invite-form-field">
+                                    <label class="invite-form-label">Permiso</label>
+                                    <select v-model="editSharePermission" class="input-field">
+                                        <option value="read">Solo lectura</option>
+                                        <option value="edit">Edición</option>
+                                    </select>
+                                </div>
+                                <div class="invite-form-field">
+                                    <label class="invite-form-label">Vence el (opcional)</label>
+                                    <input type="datetime-local" v-model="editShareExpiry" class="input-field">
+                                </div>
+                                <button class="btn btn-primary" @click="saveEditShare" style="align-self:flex-end;">Guardar</button>
+                                <button class="btn btn-secondary" @click="editingShare = null" style="align-self:flex-end;">Cancelar</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Invitar usuario -->
+                    <div class="modal-section" style="border-top:1px solid var(--border);padding-top:16px;">
+                        <p class="modal-section-title">Invitar usuario</p>
+                        <input
+                            v-model="shareSearch"
+                            class="input-field"
+                            placeholder="Buscar por nombre o @username…"
+                            @input="onShareSearch">
+                        <div v-if="shareSearching" style="padding:8px;color:var(--text-muted);font-size:0.84rem;">Buscando…</div>
+                        <div v-if="shareSearchError" style="padding:8px;color:var(--danger);font-size:0.84rem;">{{ shareSearchError }}</div>
+                        <div v-if="shareSearchResults.length > 0" style="margin-top:6px;">
+                            <div v-for="user in shareSearchResults" :key="user.id"
+                                 class="search-result-item"
+                                 :class="{ selected: selectedShareUser && selectedShareUser.id === user.id }"
+                                 @click="selectShareUser(user)">
+                                <div v-if="user.avatar" style="width:32px;height:32px;border-radius:50%;overflow:hidden;flex-shrink:0;">
+                                    <img :src="user.avatar" style="width:100%;height:100%;object-fit:cover;" referrerpolicy="no-referrer">
+                                </div>
+                                <div v-else class="user-avatar-placeholder" style="width:32px;height:32px;font-size:12px;">{{ user.name[0] }}</div>
+                                <div>
+                                    <div style="font-size:0.875rem;font-weight:600;">{{ user.name }}</div>
+                                    <div style="font-size:0.75rem;color:var(--text-muted);">@{{ user.username }}</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div v-if="shareSearch.length >= 2 && !shareSearching && shareSearchResults.length === 0 && !shareSearchError"
+                             style="padding:8px;color:var(--text-faint);font-size:0.84rem;">
+                            No se encontró ningún usuario. Solo puedes compartir con usuarios registrados en QuickPlan.
+                        </div>
+
+                        <!-- Formulario de invitación -->
+                        <div v-if="selectedShareUser" class="invite-form" style="margin-top:8px;">
+                            <div style="font-size:0.84rem;font-weight:600;margin-bottom:10px;">
+                                Invitando a: {{ selectedShareUser.name }} (@{{ selectedShareUser.username }})
+                            </div>
+                            <div class="invite-form-row">
+                                <div class="invite-form-field">
+                                    <label class="invite-form-label">Permiso</label>
+                                    <select v-model="newSharePermission" class="input-field">
+                                        <option value="read">Solo lectura</option>
+                                        <option value="edit">Edición</option>
+                                    </select>
+                                </div>
+                                <div class="invite-form-field">
+                                    <label class="invite-form-label">Vence el (opcional)</label>
+                                    <input type="datetime-local" v-model="newShareExpiry" class="input-field">
+                                </div>
+                                <button class="btn btn-primary" @click="sendInvite" style="align-self:flex-end;">Invitar</button>
+                                <button class="btn btn-secondary" @click="selectedShareUser = null" style="align-self:flex-end;">Cancelar</button>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- App principal -->
+        <div v-if="currentUser" class="app-wrapper">
 
             <!-- Header -->
             <div class="header">
-                <div class="header-logo">⚡</div>
-                <div>
-                    <h1 class="header-title">QuickPlan</h1>
-                    <p class="header-subtitle">Sistema de Gestión de Tareas</p>
+                <div class="header-logo">
+                    <img src="/logo.png" alt="planning.andyjara.dev">
                 </div>
-                <span class="header-brand">by andyjara.dev</span>
+                <div class="header-user">
+                    <div v-if="!viewingUser">
+                        <button class="btn btn-secondary btn-small" @click="openShareDialog">🔗 Compartir plan</button>
+                    </div>
+                    <div v-if="currentUser.avatar" style="width:36px;height:36px;border-radius:50%;overflow:hidden;flex-shrink:0;">
+                        <img :src="currentUser.avatar" style="width:100%;height:100%;object-fit:cover;" referrerpolicy="no-referrer">
+                    </div>
+                    <div v-else class="user-avatar-placeholder">{{ currentUser.name[0] }}</div>
+                    <div>
+                        <div class="user-name">{{ currentUser.name }}</div>
+                        <div class="user-username">@{{ currentUser.username }}</div>
+                    </div>
+                    <a href="/auth/logout" class="btn btn-secondary btn-small">Salir</a>
+                </div>
+            </div>
+
+            <!-- Banner plan compartido -->
+            <div v-if="viewingUser" class="shared-banner">
+                <span class="shared-banner-icon">👁️</span>
+                <span class="shared-banner-text">
+                    Viendo plan de <strong>{{ viewingUser.name }}</strong>
+                    (@{{ viewingUser.username }})
+                    <span v-if="viewingShareExpiry"> · Vence: {{ formatDate(viewingShareExpiry) }}</span>
+                </span>
+                <span :class="isReadOnly ? 'badge-readonly' : 'badge-edit'">
+                    {{ isReadOnly ? 'Solo lectura' : 'Edición' }}
+                </span>
+                <button class="btn btn-secondary btn-small" @click="backToMyPlan">Volver a mi plan</button>
             </div>
 
             <!-- Estadísticas -->
@@ -681,82 +839,54 @@
                 </div>
             </div>
 
-            <!-- Formulario -->
-            <div class="card">
+            <!-- Formulario (oculto en solo lectura) -->
+            <div v-if="!isReadOnly" class="card">
                 <p class="card-title">Nueva Tarea</p>
                 <div class="form-grid">
-                    <input v-model="newTask.tarea"
-                           class="input-field"
-                           placeholder="Descripción de la tarea*"
-                           @keyup.enter="addTask">
-                    <input v-model.number="newTask.horas"
-                           class="input-field"
-                           type="number"
-                           step="0.5"
-                           placeholder="Horas"
-                           @keyup.enter="addTask">
-                    <textarea v-model="newTask.observaciones"
-                              class="input-field textarea-field"
-                              placeholder="Observaciones (opcional)"
-                              rows="2"
-                              @keyup.enter="addTask"></textarea>
-                    <input v-model="newTask.recurso"
-                           class="input-field"
-                           placeholder="Recurso a cargo*"
-                           @keyup.enter="addTask">
+                    <input v-model="newTask.tarea" class="input-field" placeholder="Descripción de la tarea*" @keyup.enter="addTask">
+                    <input v-model.number="newTask.horas" class="input-field" type="number" step="0.5" placeholder="Horas" @keyup.enter="addTask">
+                    <textarea v-model="newTask.observaciones" class="input-field textarea-field" placeholder="Observaciones (opcional)" rows="2" @keyup.enter="addTask"></textarea>
+                    <input v-model="newTask.recurso" class="input-field" placeholder="Recurso a cargo*" @keyup.enter="addTask">
                     <select v-model="newTask.status" class="input-field">
                         <option value="pending">Pendiente</option>
                         <option value="in_progress">En progreso</option>
                         <option value="done">Completada</option>
                     </select>
                 </div>
-                <button @click="addTask"
-                        class="btn btn-primary"
-                        :disabled="!newTask.tarea || !newTask.recurso">
-                    ➕ Agregar Tarea
-                </button>
+                <button @click="addTask" class="btn btn-primary" :disabled="!newTask.tarea || !newTask.recurso">➕ Agregar Tarea</button>
             </div>
 
             <!-- Barra de Acciones -->
             <div class="actions-bar">
                 <h2 class="section-title">Lista de Tareas</h2>
                 <div class="action-group">
-                    <button @click="clearAllTasks" class="btn btn-clear">🗑️ Limpiar Todo</button>
-                    <button @click="refreshData"   class="btn btn-secondary">🔄 Actualizar</button>
+                    <button v-if="!isReadOnly" @click="clearAllTasks" class="btn btn-clear">🗑️ Limpiar Todo</button>
+                    <button @click="refreshData" class="btn btn-secondary">🔄 Actualizar</button>
                     <button @click="exportToExcel" class="btn btn-success">📊 Generar Excel</button>
                 </div>
             </div>
 
             <!-- Búsqueda y filtros -->
             <div class="search-row">
-                <input v-model="searchQuery"
-                       class="search-input"
-                       placeholder="🔍 Buscar por tarea, recurso u observaciones…">
+                <input v-model="searchQuery" class="search-input" placeholder="🔍 Buscar por tarea, recurso u observaciones…">
                 <select v-model="statusFilter" class="filter-select">
                     <option value="">Todos los estados</option>
                     <option value="pending">Pendiente</option>
                     <option value="in_progress">En progreso</option>
                     <option value="done">Completada</option>
                 </select>
-                <span v-if="searchQuery || statusFilter"
-                      style="font-size:0.8rem;color:var(--text-muted);align-self:center;">
+                <span v-if="searchQuery || statusFilter" style="font-size:0.8rem;color:var(--text-muted);align-self:center;">
                     {{ filteredTasks.length }} resultado(s)
                 </span>
             </div>
 
             <!-- Barra de acciones en lote -->
-            <div v-if="selectedTasks.length > 0" class="bulk-bar">
+            <div v-if="selectedTasks.length > 0 && !isReadOnly" class="bulk-bar">
                 <span class="bulk-bar-count">{{ selectedTasks.length }} seleccionada(s)</span>
-                <input v-model="bulkRecurso"
-                       class="bulk-input"
-                       placeholder="Nuevo recurso…">
-                <button @click="bulkReassign"
-                        class="btn btn-info btn-small"
-                        :disabled="!bulkRecurso.trim()">Reasignar</button>
-                <button @click="bulkDelete"
-                        class="btn btn-danger btn-small">🗑️ Eliminar</button>
-                <button @click="selectedTasks = []"
-                        class="btn btn-secondary btn-small">Cancelar</button>
+                <input v-model="bulkRecurso" class="bulk-input" placeholder="Nuevo recurso…">
+                <button @click="bulkReassign" class="btn btn-info btn-small" :disabled="!bulkRecurso.trim()">Reasignar</button>
+                <button @click="bulkDelete" class="btn btn-danger btn-small">🗑️ Eliminar</button>
+                <button @click="selectedTasks = []" class="btn btn-secondary btn-small">Cancelar</button>
             </div>
 
             <!-- Tabla de Tareas -->
@@ -764,14 +894,15 @@
                 <div v-if="loading" class="loading">Cargando tareas…</div>
                 <div v-else-if="tasks.length === 0" class="empty-state">
                     <h3>No hay tareas aún</h3>
-                    <p>Agrega tu primera tarea usando el formulario de arriba.</p>
+                    <p v-if="!isReadOnly">Agrega tu primera tarea usando el formulario de arriba.</p>
+                    <p v-else>Este plan aún no tiene tareas.</p>
                 </div>
                 <div v-else-if="filteredTasks.length === 0" class="empty-state">
                     <h3>Sin resultados</h3>
                     <p>No hay tareas que coincidan con el filtro actual.</p>
                 </div>
-                <!-- Zona para promover subtarea a tarea principal -->
-                <div class="promote-drop-zone"
+
+                <div v-if="!isReadOnly" class="promote-drop-zone"
                      :class="{ active: isDraggingSubtask, 'drag-over-promote': promoteDragOver }"
                      @dragover.prevent="promoteDragOver = true"
                      @dragleave="promoteDragOver = false"
@@ -779,14 +910,13 @@
                     ↑ Soltar aquí para promover a tarea principal
                 </div>
 
-                <table v-else class="tasks-table">
+                <table v-if="filteredTasks.length > 0" class="tasks-table">
                     <thead>
                         <tr>
-                            <th class="th-check">
-                                <input type="checkbox"
-                                       class="row-checkbox"
-                                       v-model="allSelected">
+                            <th class="th-check" v-if="!isReadOnly">
+                                <input type="checkbox" class="row-checkbox" v-model="allSelected">
                             </th>
+                            <th v-else class="th-check"></th>
                             <th class="th-id">ID</th>
                             <th>Tarea</th>
                             <th class="th-status">Estado</th>
@@ -801,34 +931,29 @@
                             <!-- Fila de tarea principal -->
                             <tr class="draggable-row task-main"
                                 :class="{ 'has-subtasks': task.subtasks && task.subtasks.length > 0 }"
-                                draggable="true"
-                                @dragstart="onDragStart($event, task, false)"
-                                @dragover="onDragOver($event, task)"
-                                @drop="onDrop($event, task)"
-                                @dragenter="onDragEnter($event)"
-                                @dragleave="onDragLeave($event)"
-                                @dragend="onDragEnd()">
+                                :draggable="!isReadOnly"
+                                @dragstart="!isReadOnly && onDragStart($event, task, false)"
+                                @dragover="!isReadOnly && onDragOver($event, task)"
+                                @drop="!isReadOnly && onDrop($event, task)"
+                                @dragenter="!isReadOnly && onDragEnter($event)"
+                                @dragleave="!isReadOnly && onDragLeave($event)"
+                                @dragend="!isReadOnly && onDragEnd()">
                                 <td>
-                                    <input type="checkbox"
-                                           class="row-checkbox"
-                                           :value="task.id"
-                                           v-model="selectedTasks">
+                                    <input v-if="!isReadOnly" type="checkbox" class="row-checkbox" :value="task.id" v-model="selectedTasks">
                                 </td>
                                 <td>
                                     <div class="id-cell">
-                                        <span class="drag-handle">⋮⋮</span>
+                                        <span v-if="!isReadOnly" class="drag-handle">⋮⋮</span>
                                         #{{ task.id }}
                                         <span v-if="task.subtasks && task.subtasks.length > 0"
-                                              class="subtask-toggle"
-                                              @click="toggleSubtasks(task.id)">
+                                              class="subtask-toggle" @click="toggleSubtasks(task.id)">
                                             {{ task.showSubtasks ? '▼' : '▶' }}
                                         </span>
                                     </div>
                                 </td>
                                 <td>
-                                    <div class="editable-cell"
-                                         :class="{ editing: editingCell === `tarea-${task.id}` }"
-                                         @click="startEdit(task.id, 'tarea', task.tarea)">
+                                    <div class="editable-cell" :class="{ editing: editingCell === `tarea-${task.id}`, readonly: isReadOnly }"
+                                         @click="!isReadOnly && startEdit(task.id, 'tarea', task.tarea)">
                                         {{ task.tarea }}
                                     </div>
                                 </td>
@@ -836,16 +961,16 @@
                                     <select class="status-select"
                                             :class="`status-${task.status || 'pending'}`"
                                             :value="task.status || 'pending'"
-                                            @change="updateStatus(task, $event.target.value)">
+                                            :disabled="isReadOnly"
+                                            @change="!isReadOnly && updateStatus(task, $event.target.value)">
                                         <option value="pending">Pendiente</option>
                                         <option value="in_progress">En progreso</option>
                                         <option value="done">Completada</option>
                                     </select>
                                 </td>
                                 <td>
-                                    <div class="editable-cell"
-                                         :class="{ editing: editingCell === `horas-${task.id}` }"
-                                         @click="startEdit(task.id, 'horas', task.horas)">
+                                    <div class="editable-cell" :class="{ editing: editingCell === `horas-${task.id}`, readonly: isReadOnly }"
+                                         @click="!isReadOnly && startEdit(task.id, 'horas', task.horas)">
                                         {{ task.horas }} h
                                     </div>
                                     <div v-if="task.subtasks && task.subtasks.length > 0"
@@ -856,39 +981,25 @@
                                     </div>
                                 </td>
                                 <td>
-                                    <div class="editable-cell"
-                                         :class="{ editing: editingCell === `observaciones-${task.id}` }"
-                                         @click="startEdit(task.id, 'observaciones', task.observaciones)">
+                                    <div class="editable-cell" :class="{ editing: editingCell === `observaciones-${task.id}`, readonly: isReadOnly }"
+                                         @click="!isReadOnly && startEdit(task.id, 'observaciones', task.observaciones)">
                                         {{ task.observaciones || '—' }}
                                     </div>
                                 </td>
                                 <td>
-                                    <div class="editable-cell"
-                                         :class="{ editing: editingCell === `recurso-${task.id}` }"
-                                         @click="startEdit(task.id, 'recurso', task.recurso)">
+                                    <div class="editable-cell" :class="{ editing: editingCell === `recurso-${task.id}`, readonly: isReadOnly }"
+                                         @click="!isReadOnly && startEdit(task.id, 'recurso', task.recurso)">
                                         {{ task.recurso }}
                                     </div>
                                 </td>
                                 <td>
                                     <div class="action-buttons">
-                                        <button @click="addSubtask(task.id)"
-                                                class="btn btn-info btn-small"
-                                                title="Agregar subtarea">➕</button>
-                                        <button @click="validateTask(task.id)"
-                                                class="btn btn-warning btn-small"
-                                                title="Validar horas"
-                                                v-if="task.subtasks && task.subtasks.length > 0">✓</button>
-                                        <button @click="moveTaskUp(task.id)"
-                                                class="btn btn-secondary btn-small"
-                                                title="Subir tarea"
-                                                :disabled="tasks.indexOf(task) === 0">⬆️</button>
-                                        <button @click="moveTaskDown(task.id)"
-                                                class="btn btn-secondary btn-small"
-                                                title="Bajar tarea"
-                                                :disabled="tasks.indexOf(task) === tasks.length - 1">⬇️</button>
-                                        <button @click="deleteTask(task.id)"
-                                                class="btn btn-danger btn-small"
-                                                title="Eliminar tarea">🗑️</button>
+                                        <button v-if="!isReadOnly" @click="addSubtask(task.id)" class="btn btn-info btn-small" title="Agregar subtarea">➕</button>
+                                        <button v-if="!isReadOnly && task.subtasks && task.subtasks.length > 0"
+                                                @click="validateTask(task.id)" class="btn btn-warning btn-small" title="Validar horas">✓</button>
+                                        <button v-if="!isReadOnly" @click="moveTaskUp(task.id)" class="btn btn-secondary btn-small" title="Subir tarea" :disabled="tasks.indexOf(task) === 0">⬆️</button>
+                                        <button v-if="!isReadOnly" @click="moveTaskDown(task.id)" class="btn btn-secondary btn-small" title="Bajar tarea" :disabled="tasks.indexOf(task) === tasks.length - 1">⬇️</button>
+                                        <button v-if="!isReadOnly" @click="deleteTask(task.id)" class="btn btn-danger btn-small" title="Eliminar tarea">🗑️</button>
                                     </div>
                                 </td>
                             </tr>
@@ -898,21 +1009,21 @@
                                 <tr v-for="subtask in task.subtasks"
                                     :key="`sub-${subtask.id}`"
                                     class="subtask-row draggable-row"
-                                    draggable="true"
-                                    @dragstart="onDragStart($event, subtask, true)"
-                                    @dragend="onDragEnd()">
+                                    :draggable="!isReadOnly"
+                                    @dragstart="!isReadOnly && onDragStart($event, subtask, true)"
+                                    @dragend="!isReadOnly && onDragEnd()">
                                     <td></td>
                                     <td>
                                         <div class="id-cell subtask-id">
-                                            <span class="drag-handle">⋮⋮</span>
+                                            <span v-if="!isReadOnly" class="drag-handle">⋮⋮</span>
                                             <span class="subtask-indent">↳</span>
                                             #{{ subtask.id }}
                                         </div>
                                     </td>
                                     <td>
                                         <div class="subtask-tarea-display"
-                                             :class="{ editing: editingCell === `tarea-${subtask.id}` }"
-                                             @click="startEdit(subtask.id, 'tarea', subtask.tarea, true)">
+                                             :class="{ editing: editingCell === `tarea-${subtask.id}`, readonly: isReadOnly }"
+                                             @click="!isReadOnly && startEdit(subtask.id, 'tarea', subtask.tarea, true)">
                                             {{ subtask.tarea }}
                                         </div>
                                     </td>
@@ -920,41 +1031,36 @@
                                         <select class="status-select"
                                                 :class="`status-${subtask.status || 'pending'}`"
                                                 :value="subtask.status || 'pending'"
-                                                @change="updateStatus(subtask, $event.target.value)">
+                                                :disabled="isReadOnly"
+                                                @change="!isReadOnly && updateStatus(subtask, $event.target.value)">
                                             <option value="pending">Pendiente</option>
                                             <option value="in_progress">En progreso</option>
                                             <option value="done">Completada</option>
                                         </select>
                                     </td>
                                     <td>
-                                        <div class="editable-cell"
-                                             :class="{ editing: editingCell === `horas-${subtask.id}` }"
-                                             @click="startEdit(subtask.id, 'horas', subtask.horas)">
+                                        <div class="editable-cell" :class="{ editing: editingCell === `horas-${subtask.id}`, readonly: isReadOnly }"
+                                             @click="!isReadOnly && startEdit(subtask.id, 'horas', subtask.horas)">
                                             {{ subtask.horas }} h
                                         </div>
                                     </td>
                                     <td>
-                                        <div class="subtask-tarea-display"
-                                             :class="{ editing: editingCell === `observaciones-${subtask.id}` }"
-                                             @click="startEdit(subtask.id, 'observaciones', subtask.observaciones, true)">
+                                        <div class="subtask-tarea-display" :class="{ editing: editingCell === `observaciones-${subtask.id}`, readonly: isReadOnly }"
+                                             @click="!isReadOnly && startEdit(subtask.id, 'observaciones', subtask.observaciones, true)">
                                             {{ subtask.observaciones || '—' }}
                                         </div>
                                     </td>
-                                    <td class="subtask-resource">
-                                        <span class="no-resource">—</span>
-                                    </td>
+                                    <td class="subtask-resource"><span class="no-resource">—</span></td>
                                     <td>
                                         <div class="action-buttons">
-                                            <button @click="deleteTask(subtask.id)"
-                                                    class="btn btn-danger btn-small"
-                                                    title="Eliminar subtarea">🗑️</button>
+                                            <button v-if="!isReadOnly" @click="deleteTask(subtask.id)" class="btn btn-danger btn-small" title="Eliminar subtarea">🗑️</button>
                                         </div>
                                     </td>
                                 </tr>
                             </template>
 
                             <!-- Nueva subtarea inline -->
-                            <tr v-if="addingSubtaskTo === task.id" class="new-subtask-row">
+                            <tr v-if="addingSubtaskTo === task.id && !isReadOnly" class="new-subtask-row">
                                 <td></td>
                                 <td>
                                     <div class="id-cell subtask-id">
@@ -963,52 +1069,33 @@
                                     </div>
                                 </td>
                                 <td>
-                                    <input type="text"
-                                           v-model="newSubtask.tarea"
-                                           class="new-subtask-input"
+                                    <input type="text" v-model="newSubtask.tarea" class="new-subtask-input"
                                            placeholder="Título de la subtarea..."
-                                           @keyup.enter="saveSubtask(task.id)"
-                                           @keyup.escape="cancelSubtask()">
+                                           @keyup.enter="saveSubtask(task.id)" @keyup.escape="cancelSubtask()">
                                 </td>
                                 <td></td>
                                 <td>
                                     <div class="hours-input-container">
-                                        <input type="number"
-                                               v-model="newSubtask.horas"
-                                               class="new-subtask-input"
+                                        <input type="number" v-model="newSubtask.horas" class="new-subtask-input"
                                                :class="{ 'hours-invalid': !isValidSubtaskHours }"
-                                               placeholder="0"
-                                               step="0.5"
-                                               min="0"
-                                               :max="availableHours"
-                                               @keyup.enter="saveSubtask(task.id)"
-                                               @keyup.escape="cancelSubtask()">
-                                        <div class="hours-validation"
-                                             :class="{ 'error': !isValidSubtaskHours, 'info': isValidSubtaskHours }">
+                                               placeholder="0" step="0.5" min="0" :max="availableHours"
+                                               @keyup.enter="saveSubtask(task.id)" @keyup.escape="cancelSubtask()">
+                                        <div class="hours-validation" :class="{ 'error': !isValidSubtaskHours, 'info': isValidSubtaskHours }">
                                             {{ hoursValidationMessage }}
                                         </div>
                                     </div>
                                 </td>
                                 <td>
-                                    <input type="text"
-                                           v-model="newSubtask.observaciones"
-                                           class="new-subtask-input"
+                                    <input type="text" v-model="newSubtask.observaciones" class="new-subtask-input"
                                            placeholder="Observaciones (opcional)..."
-                                           @keyup.enter="saveSubtask(task.id)"
-                                           @keyup.escape="cancelSubtask()">
+                                           @keyup.enter="saveSubtask(task.id)" @keyup.escape="cancelSubtask()">
                                 </td>
-                                <td class="subtask-resource">
-                                    <span class="no-resource">Sin recurso asignado</span>
-                                </td>
+                                <td class="subtask-resource"><span class="no-resource">Sin recurso asignado</span></td>
                                 <td>
                                     <div class="action-buttons">
-                                        <button @click="saveSubtask(task.id)"
-                                                class="btn btn-success btn-small"
-                                                title="Guardar subtarea"
+                                        <button @click="saveSubtask(task.id)" class="btn btn-success btn-small"
                                                 :disabled="!newSubtask.tarea.trim() || !isValidSubtaskHours">✅</button>
-                                        <button @click="cancelSubtask()"
-                                                class="btn btn-secondary btn-small"
-                                                title="Cancelar">❌</button>
+                                        <button @click="cancelSubtask()" class="btn btn-secondary btn-small">❌</button>
                                     </div>
                                 </td>
                             </tr>
@@ -1019,15 +1106,14 @@
 
             <!-- Footer -->
             <div class="footer">
-                <p>QuickPlan v1.1.0 · Node.js + Express + SQLite + Vue.js ·
-                   Desarrollado por <a href="https://andyjara.dev" target="_blank" rel="noopener">andyjara.dev</a>
+                <p>planning.andyjara.dev v2.0.0 · Node.js + Express + SQLite + Vue.js ·
+                   por <a href="https://andyjara.dev" target="_blank" rel="noopener">andyjara.dev</a>
                 </p>
             </div>
 
         </div><!-- /app-wrapper -->
     </div><!-- /app -->
 
-    <!-- Vue.js -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
 
     <script>
@@ -1036,6 +1122,15 @@
         createApp({
             data() {
                 return {
+                    // Auth
+                    currentUser: null,
+                    isAuthLoading: true,
+                    // Plan visto
+                    viewingUser: null,
+                    viewingUserId: null,
+                    viewingShareExpiry: null,
+                    isReadOnly: false,
+                    // Tareas
                     tasks: [],
                     stats: {},
                     loading: false,
@@ -1043,13 +1138,7 @@
                     statusFilter: '',
                     selectedTasks: [],
                     bulkRecurso: '',
-                    newTask: {
-                        tarea: '',
-                        horas: 0,
-                        observaciones: '',
-                        recurso: '',
-                        status: 'pending'
-                    },
+                    newTask: { tarea: '', horas: 0, observaciones: '', recurso: '', status: 'pending' },
                     editingCell: null,
                     editingValue: '',
                     editingTaskId: null,
@@ -1059,15 +1148,32 @@
                     isDraggingSubtask: false,
                     promoteDragOver: false,
                     addingSubtaskTo: null,
-                    newSubtask: {
-                        tarea: '',
-                        horas: 0,
-                        observaciones: ''
-                    }
+                    newSubtask: { tarea: '', horas: 0, observaciones: '' },
+                    // Compartición
+                    showShareDialog: false,
+                    currentShares: [],
+                    shareSearch: '',
+                    shareSearchResults: [],
+                    shareSearching: false,
+                    shareSearchError: '',
+                    shareSearchTimer: null,
+                    selectedShareUser: null,
+                    newSharePermission: 'read',
+                    newShareExpiry: '',
+                    editingShare: null,
+                    editSharePermission: 'read',
+                    editShareExpiry: ''
                 };
             },
 
             computed: {
+                myShares() {
+                    return this.currentShares.filter(s => s.owner_id === this.currentUser?.id);
+                },
+                sharedWithMe() {
+                    return this.currentShares.filter(s => s.shared_with_id === this.currentUser?.id);
+                },
+
                 filteredTasks() {
                     let result = this.tasks;
                     if (this.searchQuery.trim()) {
@@ -1090,68 +1196,226 @@
                                this.filteredTasks.every(t => this.selectedTasks.includes(t.id));
                     },
                     set(val) {
-                        const filteredIds = this.filteredTasks.map(t => t.id);
-                        if (val) {
-                            this.selectedTasks = [...new Set([...this.selectedTasks, ...filteredIds])];
-                        } else {
-                            this.selectedTasks = this.selectedTasks.filter(id => !filteredIds.includes(id));
-                        }
+                        const ids = this.filteredTasks.map(t => t.id);
+                        this.selectedTasks = val
+                            ? [...new Set([...this.selectedTasks, ...ids])]
+                            : this.selectedTasks.filter(id => !ids.includes(id));
                     }
                 },
 
                 availableHours() {
                     if (!this.addingSubtaskTo) return 0;
-                    const parentTask = this.tasks.find(t => t.id === this.addingSubtaskTo);
-                    if (!parentTask) return 0;
-                    const parentHours = parentTask.horas || 0;
-                    const subtaskHours = parentTask.subtasks ?
-                        parentTask.subtasks.reduce((sum, sub) => sum + (sub.horas || 0), 0) : 0;
-                    return Math.max(0, parentHours - subtaskHours);
+                    const parent = this.tasks.find(t => t.id === this.addingSubtaskTo);
+                    if (!parent) return 0;
+                    const used = (parent.subtasks || []).reduce((s, sub) => s + (sub.horas || 0), 0);
+                    return Math.max(0, (parent.horas || 0) - used);
                 },
 
                 isValidSubtaskHours() {
-                    const hours = parseFloat(this.newSubtask.horas) || 0;
-                    return hours <= this.availableHours && hours >= 0;
+                    const h = parseFloat(this.newSubtask.horas) || 0;
+                    return h <= this.availableHours && h >= 0;
                 },
 
                 hoursValidationMessage() {
                     if (!this.addingSubtaskTo) return '';
-                    const hours = parseFloat(this.newSubtask.horas) || 0;
-                    const available = this.availableHours;
-                    if (hours > available) {
-                        return `Excede las horas disponibles (${available.toFixed(2)}h restantes)`;
-                    }
-                    return `${available.toFixed(2)}h disponibles de ${this.tasks.find(t => t.id === this.addingSubtaskTo)?.horas || 0}h total`;
+                    const h = parseFloat(this.newSubtask.horas) || 0;
+                    if (h > this.availableHours) return `Excede las horas disponibles (${this.availableHours.toFixed(2)}h restantes)`;
+                    const parent = this.tasks.find(t => t.id === this.addingSubtaskTo);
+                    return `${this.availableHours.toFixed(2)}h disponibles de ${parent?.horas || 0}h total`;
                 }
             },
 
             async mounted() {
-                await this.loadTasks();
-                await this.loadStats();
+                await this.checkAuth();
             },
 
             methods: {
+                // ── Auth ──────────────────────────────────────────────────────
+
+                async checkAuth() {
+                    try {
+                        const res = await fetch('/api/me');
+                        if (res.ok) {
+                            this.currentUser = await res.json();
+                            await Promise.all([this.loadTasks(), this.loadStats(), this.loadShares()]);
+                        }
+                    } catch (e) {
+                        console.error('Error verificando auth:', e);
+                    } finally {
+                        this.isAuthLoading = false;
+                    }
+                },
+
+                // Fetch con manejo de 401
+                async apiFetch(url, options = {}) {
+                    const res = await fetch(url, options);
+                    if (res.status === 401) {
+                        this.currentUser = null;
+                        return null;
+                    }
+                    return res;
+                },
+
+                // ── Vistas de planes compartidos ──────────────────────────────
+
+                async viewSharedPlan(share) {
+                    // share es de la lista "sharedWithMe"
+                    this.viewingUserId = share.owner_id;
+                    this.viewingUser = { name: share.owner_name, username: share.owner_username };
+                    this.viewingShareExpiry = share.expires_at;
+                    this.isReadOnly = share.permission === 'read';
+                    this.showShareDialog = false;
+                    await Promise.all([this.loadTasks(), this.loadStats()]);
+                },
+
+                async backToMyPlan() {
+                    this.viewingUserId = null;
+                    this.viewingUser = null;
+                    this.viewingShareExpiry = null;
+                    this.isReadOnly = false;
+                    await Promise.all([this.loadTasks(), this.loadStats()]);
+                },
+
+                // ── Compartición ──────────────────────────────────────────────
+
+                async openShareDialog() {
+                    await this.loadShares();
+                    this.showShareDialog = true;
+                    this.shareSearch = '';
+                    this.shareSearchResults = [];
+                    this.shareSearchError = '';
+                    this.selectedShareUser = null;
+                    this.editingShare = null;
+                },
+
+                async loadShares() {
+                    const res = await this.apiFetch('/api/shares');
+                    if (res && res.ok) this.currentShares = await res.json();
+                },
+
+                onShareSearch() {
+                    clearTimeout(this.shareSearchTimer);
+                    this.shareSearchResults = [];
+                    this.shareSearchError = '';
+                    this.selectedShareUser = null;
+                    if (this.shareSearch.length < 2) return;
+
+                    this.shareSearching = true;
+                    this.shareSearchTimer = setTimeout(async () => {
+                        const res = await this.apiFetch(`/api/users/search?q=${encodeURIComponent(this.shareSearch)}`);
+                        this.shareSearching = false;
+                        if (res && res.ok) {
+                            this.shareSearchResults = await res.json();
+                        }
+                    }, 300);
+                },
+
+                selectShareUser(user) {
+                    this.selectedShareUser = user;
+                    this.newSharePermission = 'read';
+                    this.newShareExpiry = '';
+                },
+
+                async sendInvite() {
+                    if (!this.selectedShareUser) return;
+                    const body = {
+                        username: this.selectedShareUser.username,
+                        permission: this.newSharePermission,
+                        expiresAt: this.newShareExpiry || null
+                    };
+                    const res = await this.apiFetch('/api/shares', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(body)
+                    });
+                    if (!res) return;
+                    if (res.ok) {
+                        const data = await res.json();
+                        this.showNotification(`Plan compartido con ${data.user.name}`, 'success');
+                        this.selectedShareUser = null;
+                        this.shareSearch = '';
+                        this.shareSearchResults = [];
+                        await this.loadShares();
+                    } else {
+                        const err = await res.json();
+                        this.showNotification(err.error || 'Error al compartir', 'error');
+                    }
+                },
+
+                editShare(share) {
+                    this.editingShare = share;
+                    this.editSharePermission = share.permission;
+                    this.editShareExpiry = share.expires_at
+                        ? new Date(share.expires_at).toISOString().slice(0, 16)
+                        : '';
+                },
+
+                async saveEditShare() {
+                    const res = await this.apiFetch(`/api/shares/${this.editingShare.id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            permission: this.editSharePermission,
+                            expiresAt: this.editShareExpiry || null
+                        })
+                    });
+                    if (!res) return;
+                    if (res.ok) {
+                        this.showNotification('Compartición actualizada', 'success');
+                        this.editingShare = null;
+                        await this.loadShares();
+                    } else {
+                        const err = await res.json();
+                        this.showNotification(err.error || 'Error al actualizar', 'error');
+                    }
+                },
+
+                async revokeShare(shareId) {
+                    if (!confirm('¿Revocar acceso a este usuario?')) return;
+                    const res = await this.apiFetch(`/api/shares/${shareId}`, { method: 'DELETE' });
+                    if (res && res.ok) {
+                        this.showNotification('Acceso revocado', 'success');
+                        await this.loadShares();
+                    }
+                },
+
+                async leaveShare(shareId) {
+                    if (!confirm('¿Dejar de ver este plan compartido?')) return;
+                    const res = await this.apiFetch(`/api/shares/${shareId}`, { method: 'DELETE' });
+                    if (res && res.ok) {
+                        this.showNotification('Has salido del plan compartido', 'success');
+                        await this.loadShares();
+                    }
+                },
+
+                formatDate(dateStr) {
+                    if (!dateStr) return '';
+                    return new Date(dateStr).toLocaleString('es-ES', {
+                        day: '2-digit', month: '2-digit', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit'
+                    });
+                },
+
+                // ── Tareas ────────────────────────────────────────────────────
+
+                viewUserParam() {
+                    return this.viewingUserId ? `?userId=${this.viewingUserId}` : '';
+                },
+
                 async loadTasks() {
                     this.loading = true;
                     try {
-                        // Preservar qué tareas están expandidas antes de recargar
-                        const expandedIds = new Set(
-                            this.tasks.filter(t => t.showSubtasks).map(t => t.id)
-                        );
-
-                        const response = await fetch('/api/tasks');
-                        if (response.ok) {
-                            const newTasks = await response.json();
-                            // Restaurar estado expandido
-                            newTasks.forEach(t => {
-                                if (expandedIds.has(t.id)) t.showSubtasks = true;
-                            });
+                        const expandedIds = new Set(this.tasks.filter(t => t.showSubtasks).map(t => t.id));
+                        const res = await this.apiFetch(`/api/tasks${this.viewUserParam()}`);
+                        if (res && res.ok) {
+                            const newTasks = await res.json();
+                            newTasks.forEach(t => { if (expandedIds.has(t.id)) t.showSubtasks = true; });
                             this.tasks = newTasks;
-                        } else {
+                        } else if (res) {
                             this.showNotification('Error cargando tareas', 'error');
                         }
-                    } catch (error) {
-                        console.error('Error:', error);
+                    } catch (e) {
+                        console.error('Error:', e);
                         this.showNotification('Error de conexión', 'error');
                     } finally {
                         this.loading = false;
@@ -1160,12 +1424,10 @@
 
                 async loadStats() {
                     try {
-                        const response = await fetch('/api/stats');
-                        if (response.ok) {
-                            this.stats = await response.json();
-                        }
-                    } catch (error) {
-                        console.error('Error cargando estadísticas:', error);
+                        const res = await this.apiFetch(`/api/stats${this.viewUserParam()}`);
+                        if (res && res.ok) this.stats = await res.json();
+                    } catch (e) {
+                        console.error('Error cargando estadísticas:', e);
                     }
                 },
 
@@ -1174,114 +1436,92 @@
                         this.showNotification('Tarea y recurso son requeridos', 'error');
                         return;
                     }
-                    try {
-                        const response = await fetch('/api/tasks', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(this.newTask)
-                        });
-                        if (response.ok) {
-                            this.showNotification('Tarea agregada exitosamente', 'success');
-                            this.resetForm();
-                            await this.refreshData();
-                        } else {
-                            this.showNotification('Error agregando tarea', 'error');
-                        }
-                    } catch (error) {
-                        console.error('Error:', error);
-                        this.showNotification('Error de conexión', 'error');
+                    const res = await this.apiFetch(`/api/tasks${this.viewUserParam()}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(this.newTask)
+                    });
+                    if (!res) return;
+                    if (res.ok) {
+                        this.showNotification('Tarea agregada exitosamente', 'success');
+                        this.resetForm();
+                        await this.refreshData();
+                    } else {
+                        const err = await res.json();
+                        this.showNotification(err.error || 'Error agregando tarea', 'error');
                     }
                 },
 
                 async updateStatus(task, newStatus) {
-                    const updated = { ...task, status: newStatus };
-                    try {
-                        const response = await fetch(`/api/tasks/${task.id}`, {
-                            method: 'PUT',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(updated)
-                        });
-                        if (response.ok) {
-                            task.status = newStatus;
-                            this.showNotification('Estado actualizado', 'success');
-                        } else {
-                            const err = await response.json();
-                            this.showNotification(err.error || 'Error actualizando estado', 'error');
-                            await this.loadTasks();
-                        }
-                    } catch (e) {
-                        this.showNotification('Error de conexión', 'error');
+                    const res = await this.apiFetch(`/api/tasks/${task.id}${this.viewUserParam()}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ ...task, status: newStatus })
+                    });
+                    if (!res) return;
+                    if (res.ok) {
+                        task.status = newStatus;
+                        this.showNotification('Estado actualizado', 'success');
+                    } else {
+                        const err = await res.json();
+                        this.showNotification(err.error || 'Error actualizando estado', 'error');
+                        await this.loadTasks();
                     }
                 },
 
                 async bulkDelete() {
                     if (!this.selectedTasks.length) return;
                     if (!confirm(`¿Eliminar ${this.selectedTasks.length} tarea(s) seleccionada(s)?`)) return;
-                    try {
-                        await Promise.all(
-                            this.selectedTasks.map(id => fetch(`/api/tasks/${id}`, { method: 'DELETE' }))
-                        );
-                        this.selectedTasks = [];
-                        this.showNotification('Tareas eliminadas', 'success');
-                        await this.refreshData();
-                    } catch (e) {
-                        this.showNotification('Error eliminando tareas', 'error');
-                    }
+                    await Promise.all(
+                        this.selectedTasks.map(id => this.apiFetch(`/api/tasks/${id}${this.viewUserParam()}`, { method: 'DELETE' }))
+                    );
+                    this.selectedTasks = [];
+                    this.showNotification('Tareas eliminadas', 'success');
+                    await this.refreshData();
                 },
 
                 async bulkReassign() {
                     if (!this.selectedTasks.length || !this.bulkRecurso.trim()) return;
-                    try {
-                        await Promise.all(
-                            this.selectedTasks.map(id => {
-                                const task = this.tasks.find(t => t.id === id);
-                                if (!task) return Promise.resolve();
-                                return fetch(`/api/tasks/${id}`, {
-                                    method: 'PUT',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ ...task, recurso: this.bulkRecurso.trim() })
-                                });
-                            })
-                        );
-                        const recurso = this.bulkRecurso;
-                        this.bulkRecurso = '';
-                        this.selectedTasks = [];
-                        this.showNotification(`Recurso actualizado a "${recurso}"`, 'success');
-                        await this.refreshData();
-                    } catch (e) {
-                        this.showNotification('Error actualizando recurso', 'error');
-                    }
+                    await Promise.all(
+                        this.selectedTasks.map(id => {
+                            const task = this.tasks.find(t => t.id === id);
+                            if (!task) return Promise.resolve();
+                            return this.apiFetch(`/api/tasks/${id}${this.viewUserParam()}`, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ ...task, recurso: this.bulkRecurso.trim() })
+                            });
+                        })
+                    );
+                    const recurso = this.bulkRecurso;
+                    this.bulkRecurso = '';
+                    this.selectedTasks = [];
+                    this.showNotification(`Recurso actualizado a "${recurso}"`, 'success');
+                    await this.refreshData();
                 },
 
                 moveTaskUp(taskId) {
-                    const currentIndex = this.tasks.findIndex(task => task.id === taskId);
-                    if (currentIndex > 0) { this.swapTasks(currentIndex, currentIndex - 1); }
+                    const i = this.tasks.findIndex(t => t.id === taskId);
+                    if (i > 0) this.swapTasks(i, i - 1);
                 },
 
                 moveTaskDown(taskId) {
-                    const currentIndex = this.tasks.findIndex(task => task.id === taskId);
-                    if (currentIndex < this.tasks.length - 1) { this.swapTasks(currentIndex, currentIndex + 1); }
+                    const i = this.tasks.findIndex(t => t.id === taskId);
+                    if (i < this.tasks.length - 1) this.swapTasks(i, i + 1);
                 },
 
-                swapTasks(index1, index2) {
-                    const temp = this.tasks[index1];
-                    this.tasks[index1] = this.tasks[index2];
-                    this.tasks[index2] = temp;
+                swapTasks(i, j) {
+                    const temp = this.tasks[i]; this.tasks[i] = this.tasks[j]; this.tasks[j] = temp;
                     this.updateTaskOrder();
                 },
 
                 async updateTaskOrder() {
-                    try {
-                        const orderedIds = this.tasks.map(task => task.id);
-                        const response = await fetch('/api/tasks/reorder', {
-                            method: 'PUT',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ order: orderedIds })
-                        });
-                        if (!response.ok) throw new Error('Error actualizando orden');
-                        await this.refreshData();
-                    } catch (error) {
-                        console.error('Error actualizando orden:', error);
+                    const res = await this.apiFetch(`/api/tasks/reorder${this.viewUserParam()}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ order: this.tasks.map(t => t.id) })
+                    });
+                    if (!res || !res.ok) {
                         this.showNotification('Error actualizando orden de tareas', 'error');
                         await this.refreshData();
                     }
@@ -1290,34 +1530,27 @@
                 onDragOver(event, targetTask) {
                     event.preventDefault();
                     event.dataTransfer.dropEffect = 'move';
-
                     const tr = event.currentTarget;
                     if (!tr) return;
-
-                    const isNestAction = !this.isDraggingSubtask && (() => {
+                    const isNest = !this.isDraggingSubtask && (() => {
                         const rect = tr.getBoundingClientRect();
                         const relY = (event.clientY - rect.top) / rect.height;
                         return relY > 0.3 && relY < 0.7;
                     })();
-
-                    tr.classList.toggle('drag-over', !isNestAction);
-                    tr.classList.toggle('drag-over-nest', isNestAction);
+                    tr.classList.toggle('drag-over', !isNest);
+                    tr.classList.toggle('drag-over-nest', isNest);
                 },
 
-                onDragEnter(event) {
-                    event.preventDefault();
-                },
+                onDragEnter(event) { event.preventDefault(); },
 
                 onDragLeave(event) {
                     const tr = event.currentTarget;
-                    if (tr) {
-                        tr.classList.remove('drag-over', 'drag-over-nest');
-                    }
+                    if (tr) tr.classList.remove('drag-over', 'drag-over-nest');
                 },
 
                 toggleSubtasks(taskId) {
                     const task = this.tasks.find(t => t.id === taskId);
-                    if (task) { task.showSubtasks = !task.showSubtasks; }
+                    if (task) task.showSubtasks = !task.showSubtasks;
                 },
 
                 subtaskHoursSum(task) {
@@ -1344,10 +1577,10 @@
                 addSubtask(parentId) {
                     this.addingSubtaskTo = parentId;
                     const task = this.tasks.find(t => t.id === parentId);
-                    const existingHours = (task?.subtasks || []).reduce((s, sub) => s + (parseFloat(sub.horas) || 0), 0);
-                    const remaining = Math.max(0, (parseFloat(task?.horas) || 0) - existingHours);
+                    const used = (task?.subtasks || []).reduce((s, sub) => s + (parseFloat(sub.horas) || 0), 0);
+                    const remaining = Math.max(0, (parseFloat(task?.horas) || 0) - used);
                     this.newSubtask = { tarea: '', horas: remaining, observaciones: '' };
-                    if (task) { task.showSubtasks = true; }
+                    if (task) task.showSubtasks = true;
                     this.$nextTick(() => {
                         const input = document.querySelector('.new-subtask-input');
                         if (input) input.focus();
@@ -1363,29 +1596,25 @@
                         this.showNotification(this.hoursValidationMessage, 'error');
                         return;
                     }
-                    try {
-                        const response = await fetch(`/api/tasks/${parentId}/subtasks`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                tarea: this.newSubtask.tarea.trim(),
-                                horas: parseFloat(this.newSubtask.horas) || 0,
-                                observaciones: this.newSubtask.observaciones.trim()
-                            })
-                        });
-                        if (response.ok) {
-                            this.showNotification('Subtarea creada exitosamente', 'success');
-                            await this.refreshData();
-                            const task = this.tasks.find(t => t.id === parentId);
-                            if (task) { task.showSubtasks = true; }
-                            this.addingSubtaskTo = null;
-                        } else {
-                            const error = await response.json();
-                            this.showNotification(error.error || 'Error creando subtarea', 'error');
-                        }
-                    } catch (error) {
-                        console.error('Error:', error);
-                        this.showNotification('Error de conexión', 'error');
+                    const res = await this.apiFetch(`/api/tasks/${parentId}/subtasks${this.viewUserParam()}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            tarea: this.newSubtask.tarea.trim(),
+                            horas: parseFloat(this.newSubtask.horas) || 0,
+                            observaciones: this.newSubtask.observaciones.trim()
+                        })
+                    });
+                    if (!res) return;
+                    if (res.ok) {
+                        this.showNotification('Subtarea creada exitosamente', 'success');
+                        await this.refreshData();
+                        const task = this.tasks.find(t => t.id === parentId);
+                        if (task) task.showSubtasks = true;
+                        this.addingSubtaskTo = null;
+                    } else {
+                        const err = await res.json();
+                        this.showNotification(err.error || 'Error creando subtarea', 'error');
                     }
                 },
 
@@ -1395,52 +1624,40 @@
                 },
 
                 async validateTask(taskId) {
-                    try {
-                        const response = await fetch(`/api/tasks/${taskId}/validate`);
-                        const validation = await response.json();
-                        if (validation.isValid) {
-                            this.showNotification(`✅ ${validation.message}`, 'success');
-                        } else {
-                            this.showNotification(`⚠️ ${validation.message}`, 'warning');
-                        }
-                    } catch (error) {
-                        console.error('Error validando:', error);
-                        this.showNotification('Error validando la tarea', 'error');
-                    }
+                    const res = await this.apiFetch(`/api/tasks/${taskId}/validate${this.viewUserParam()}`);
+                    if (!res) return;
+                    const v = await res.json();
+                    this.showNotification(
+                        v.isValid ? `✅ ${v.message}` : `⚠️ ${v.message}`,
+                        v.isValid ? 'success' : 'warning'
+                    );
                 },
 
                 async deleteTask(id) {
                     if (!confirm('¿Estás seguro de eliminar esta tarea?')) return;
-                    try {
-                        const response = await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
-                        if (response.ok) {
-                            this.selectedTasks = this.selectedTasks.filter(sid => sid !== id);
-                            this.showNotification('Tarea eliminada', 'success');
-                            await this.refreshData();
-                        } else {
-                            this.showNotification('Error eliminando tarea', 'error');
-                        }
-                    } catch (error) {
-                        console.error('Error:', error);
-                        this.showNotification('Error de conexión', 'error');
+                    const res = await this.apiFetch(`/api/tasks/${id}${this.viewUserParam()}`, { method: 'DELETE' });
+                    if (!res) return;
+                    if (res.ok) {
+                        this.selectedTasks = this.selectedTasks.filter(sid => sid !== id);
+                        this.showNotification('Tarea eliminada', 'success');
+                        await this.refreshData();
+                    } else {
+                        const err = await res.json();
+                        this.showNotification(err.error || 'Error eliminando tarea', 'error');
                     }
                 },
 
                 async clearAllTasks() {
                     if (!confirm('⚠️ ¿Estás seguro de eliminar TODAS las tareas?\n\nEsta acción no se puede deshacer.')) return;
-                    try {
-                        const response = await fetch('/api/tasks', { method: 'DELETE' });
-                        if (response.ok) {
-                            const result = await response.json();
-                            this.selectedTasks = [];
-                            this.showNotification(result.message || 'Todas las tareas eliminadas', 'success');
-                            await this.refreshData();
-                        } else {
-                            this.showNotification('Error eliminando tareas', 'error');
-                        }
-                    } catch (error) {
-                        console.error('Error:', error);
-                        this.showNotification('Error de conexión', 'error');
+                    const res = await this.apiFetch('/api/tasks', { method: 'DELETE' });
+                    if (!res) return;
+                    if (res.ok) {
+                        const result = await res.json();
+                        this.selectedTasks = [];
+                        this.showNotification(result.message || 'Todas las tareas eliminadas', 'success');
+                        await this.refreshData();
+                    } else {
+                        this.showNotification('Error eliminando tareas', 'error');
                     }
                 },
 
@@ -1465,16 +1682,13 @@
                     event.preventDefault();
                     const draggedTaskId = parseInt(event.dataTransfer.getData('text/plain'));
                     if (draggedTaskId === targetTask.id) return;
-
                     const tr = event.currentTarget;
                     tr.classList.remove('drag-over', 'drag-over-nest');
 
                     if (this.isDraggingSubtask) {
-                        // Subtarea sobre tarea distinta → reparentar
-                        if (targetTask.is_subtask) return; // target es subtarea, ignorar
+                        if (targetTask.is_subtask) return;
                         this.reparentTask(draggedTaskId, targetTask.id);
                     } else {
-                        // Tarea principal: zona media = anidar, zonas extremas = reordenar
                         const rect = tr.getBoundingClientRect();
                         const relY = (event.clientY - rect.top) / rect.height;
                         if (relY > 0.3 && relY < 0.7) {
@@ -1487,52 +1701,41 @@
 
                 onDropPromote() {
                     this.promoteDragOver = false;
-                    if (this.draggedTask && this.isDraggingSubtask) {
-                        this.reparentTask(this.draggedTask.id, null);
-                    }
+                    if (this.draggedTask && this.isDraggingSubtask) this.reparentTask(this.draggedTask.id, null);
                 },
 
                 async reparentTask(taskId, newParentId) {
-                    try {
-                        const response = await fetch(`/api/tasks/${taskId}/reparent`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ newParentId: newParentId })
-                        });
-                        if (response.ok) {
-                            await this.refreshData();
-                            const msg = newParentId === null ? 'Tarea promovida a tarea principal' : 'Tarea anidada como subtarea';
-                            this.showNotification(msg, 'success');
-                        } else {
-                            const err = await response.json();
-                            this.showNotification(err.error || 'Error al mover tarea', 'error');
-                        }
-                    } catch (error) {
-                        console.error('Error reparentando:', error);
-                        this.showNotification('Error al mover la tarea', 'error');
+                    const res = await this.apiFetch(`/api/tasks/${taskId}/reparent${this.viewUserParam()}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ newParentId })
+                    });
+                    if (!res) return;
+                    if (res.ok) {
+                        await this.refreshData();
+                        this.showNotification(newParentId === null ? 'Tarea promovida a tarea principal' : 'Tarea anidada como subtarea', 'success');
+                    } else {
+                        const err = await res.json();
+                        this.showNotification(err.error || 'Error al mover tarea', 'error');
                     }
                 },
 
                 async moveTask(draggedTaskId, targetTaskId) {
-                    try {
-                        const response = await fetch('/api/tasks/reorder', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ taskId: draggedTaskId, targetTaskId: targetTaskId })
-                        });
-                        if (response.ok) {
-                            await this.refreshData();
-                            this.showNotification('Tarea reordenada exitosamente', 'success');
-                        } else {
-                            throw new Error('Error al reordenar');
-                        }
-                    } catch (error) {
-                        console.error('Error moviendo tarea:', error);
+                    const res = await this.apiFetch(`/api/tasks/reorder${this.viewUserParam()}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ taskId: draggedTaskId, targetTaskId })
+                    });
+                    if (res && res.ok) {
+                        await this.refreshData();
+                        this.showNotification('Tarea reordenada exitosamente', 'success');
+                    } else {
                         this.showNotification('Error al reordenar la tarea', 'error');
                     }
                 },
 
                 startEdit(taskId, field, currentValue, forceTextarea = false) {
+                    if (this.isReadOnly) return;
                     this.editingCell = `${field}-${taskId}`;
                     this.editingTaskId = taskId;
                     this.editingField = field;
@@ -1540,38 +1743,33 @@
 
                     this.$nextTick(() => {
                         const cell = document.querySelector('.editing');
-                        if (cell) {
-                            let inputElement;
-                            const useTextarea = forceTextarea || field === 'observaciones';
-                            if (useTextarea) {
-                                inputElement = document.createElement('textarea');
-                                inputElement.rows = field === 'tarea' ? 3 : 3;
-                                inputElement.className = 'input-field textarea-field';
-                                inputElement.style.resize = 'vertical';
-                                inputElement.style.width = '100%';
-                                inputElement.style.minHeight = '60px';
-                            } else {
-                                inputElement = document.createElement('input');
-                                inputElement.className = 'input-field';
-                                if (field === 'horas') {
-                                    inputElement.type = 'number';
-                                    inputElement.step = '0.5';
-                                }
-                            }
-                            inputElement.value = currentValue;
-                            inputElement.style.margin = '0';
-                            inputElement.style.padding = '6px 8px';
-                            cell.innerHTML = '';
-                            cell.appendChild(inputElement);
-                            inputElement.focus();
-                            // Seleccionar todo solo para campos numéricos cortos
-                            if (field === 'horas') inputElement.select();
-                            inputElement.addEventListener('blur', () => this.saveEdit());
-                            inputElement.addEventListener('keyup', (e) => {
-                                if (e.key === 'Enter' && !useTextarea) this.saveEdit();
-                                if (e.key === 'Escape') this.cancelEdit();
-                            });
+                        if (!cell) return;
+                        const useTextarea = forceTextarea || field === 'observaciones';
+                        let inputElement;
+                        if (useTextarea) {
+                            inputElement = document.createElement('textarea');
+                            inputElement.rows = 3;
+                            inputElement.className = 'input-field textarea-field';
+                            inputElement.style.resize = 'vertical';
+                            inputElement.style.width = '100%';
+                            inputElement.style.minHeight = '60px';
+                        } else {
+                            inputElement = document.createElement('input');
+                            inputElement.className = 'input-field';
+                            if (field === 'horas') { inputElement.type = 'number'; inputElement.step = '0.5'; }
                         }
+                        inputElement.value = currentValue;
+                        inputElement.style.margin = '0';
+                        inputElement.style.padding = '6px 8px';
+                        cell.innerHTML = '';
+                        cell.appendChild(inputElement);
+                        inputElement.focus();
+                        if (field === 'horas') inputElement.select();
+                        inputElement.addEventListener('blur', () => this.saveEdit());
+                        inputElement.addEventListener('keyup', (e) => {
+                            if (e.key === 'Enter' && !useTextarea) this.saveEdit();
+                            if (e.key === 'Escape') this.cancelEdit();
+                        });
                     });
                 },
 
@@ -1581,43 +1779,33 @@
                     const inputElement = document.querySelector('.editing input') || document.querySelector('.editing textarea');
                     if (!inputElement) { this._saving = false; return; }
 
-                    const newValue = this.editingField === 'horas' ?
-                        parseFloat(inputElement.value) || 0 :
-                        inputElement.value;
+                    const newValue = this.editingField === 'horas'
+                        ? parseFloat(inputElement.value) || 0
+                        : inputElement.value;
 
-                    // Si el valor no cambió, cancelar sin llamar al servidor
-                    const oldValue = this.editingField === 'horas' ?
-                        parseFloat(this.editingValue) || 0 :
-                        this.editingValue;
+                    const oldValue = this.editingField === 'horas'
+                        ? parseFloat(this.editingValue) || 0
+                        : this.editingValue;
+
                     const unchanged = this.editingField === 'horas'
                         ? Math.abs(newValue - oldValue) < 0.001
                         : String(newValue).trim() === String(oldValue).trim();
-                    if (unchanged) {
-                        this._saving = false;
-                        this.cancelEdit();
-                        return;
-                    }
 
-                    try {
-                        const task = this.tasks.find(t => t.id === this.editingTaskId) ||
-                                     this.tasks.flatMap(t => t.subtasks || []).find(s => s.id === this.editingTaskId);
-                        const updatedTask = { ...task, [this.editingField]: newValue };
-                        const response = await fetch(`/api/tasks/${this.editingTaskId}`, {
-                            method: 'PUT',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(updatedTask)
-                        });
-                        if (response.ok) {
-                            // Actualizar en memoria sin recargar toda la lista
-                            if (task) task[this.editingField] = newValue;
-                            this.showNotification('Tarea actualizada', 'success');
-                        } else {
-                            const err = await response.json();
-                            this.showNotification(err.error || 'Error actualizando tarea', 'error');
-                        }
-                    } catch (error) {
-                        console.error('Error:', error);
-                        this.showNotification('Error de conexión', 'error');
+                    if (unchanged) { this._saving = false; this.cancelEdit(); return; }
+
+                    const task = this.tasks.find(t => t.id === this.editingTaskId) ||
+                                 this.tasks.flatMap(t => t.subtasks || []).find(s => s.id === this.editingTaskId);
+                    const res = await this.apiFetch(`/api/tasks/${this.editingTaskId}${this.viewUserParam()}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ ...task, [this.editingField]: newValue })
+                    });
+                    if (res && res.ok) {
+                        if (task) task[this.editingField] = newValue;
+                        this.showNotification('Tarea actualizada', 'success');
+                    } else if (res) {
+                        const err = await res.json();
+                        this.showNotification(err.error || 'Error actualizando tarea', 'error');
                     }
 
                     this._saving = false;
@@ -1625,15 +1813,11 @@
                 },
 
                 cancelEdit() {
-                    // Restaurar el contenido original de la celda
-                    // (startEdit reemplaza innerHTML con un input/textarea)
                     const cell = document.querySelector('.editing');
                     if (cell) {
-                        if (this.editingField === 'horas') {
-                            cell.textContent = (parseFloat(this.editingValue) || 0) + ' h';
-                        } else {
-                            cell.textContent = this.editingValue || '—';
-                        }
+                        cell.textContent = this.editingField === 'horas'
+                            ? (parseFloat(this.editingValue) || 0) + ' h'
+                            : this.editingValue || '—';
                     }
                     this.editingCell = null;
                     this.editingTaskId = null;
@@ -1642,32 +1826,30 @@
                 },
 
                 async exportToExcel() {
-                    try {
-                        const response = await fetch('/api/export', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                title: 'Reporte QuickPlan',
-                                filename: `quickplan-${new Date().toISOString().split('T')[0]}`
-                            })
-                        });
-                        if (response.ok) {
-                            const blob = await response.blob();
-                            const url = window.URL.createObjectURL(blob);
-                            const a = document.createElement('a');
-                            a.href = url;
-                            a.download = `quickplan-reporte-${new Date().toISOString().split('T')[0]}.xlsx`;
-                            document.body.appendChild(a);
-                            a.click();
-                            document.body.removeChild(a);
-                            window.URL.revokeObjectURL(url);
-                            this.showNotification('Excel generado exitosamente', 'success');
-                        } else {
-                            this.showNotification('Error generando Excel', 'error');
-                        }
-                    } catch (error) {
-                        console.error('Error:', error);
-                        this.showNotification('Error de conexión', 'error');
+                    const res = await this.apiFetch(`/api/export${this.viewUserParam()}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            title: this.viewingUser
+                                ? `Plan de ${this.viewingUser.name} - QuickPlan`
+                                : 'Reporte QuickPlan',
+                            filename: `quickplan-${new Date().toISOString().split('T')[0]}`
+                        })
+                    });
+                    if (!res) return;
+                    if (res.ok) {
+                        const blob = await res.blob();
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `quickplan-reporte-${new Date().toISOString().split('T')[0]}.xlsx`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        window.URL.revokeObjectURL(url);
+                        this.showNotification('Excel generado exitosamente', 'success');
+                    } else {
+                        this.showNotification('Error generando Excel', 'error');
                     }
                 },
 
@@ -1680,13 +1862,11 @@
                 },
 
                 showNotification(message, type = 'success') {
-                    const notification = document.createElement('div');
-                    notification.className = `notification ${type}`;
-                    notification.textContent = message;
-                    document.body.appendChild(notification);
-                    setTimeout(() => {
-                        if (document.body.contains(notification)) document.body.removeChild(notification);
-                    }, 3000);
+                    const n = document.createElement('div');
+                    n.className = `notification ${type}`;
+                    n.textContent = message;
+                    document.body.appendChild(n);
+                    setTimeout(() => { if (document.body.contains(n)) document.body.removeChild(n); }, 3000);
                 }
             }
         }).mount('#app');
