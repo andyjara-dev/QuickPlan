@@ -4,6 +4,8 @@ services:
     build: .
     container_name: quickplan-app
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
       - NODE_ENV=production
       - PORT=3000
