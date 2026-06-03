@@ -43,7 +43,7 @@ app.use(helmet({
 app.use(compression());
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Sesiones
 const dbPath = path.join(dataDir, 'tasks.db');
@@ -814,6 +814,12 @@ app.get('/api/stats', requireAuth, resolveViewUser, (req, res) => {
             res.json(stats[0]);
         }
     );
+});
+
+// ── Archivos estáticos con ruta explícita (respaldo) ─────────────────────────
+
+app.get('/logo.png', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'logo.png'));
 });
 
 // ── SPA fallback ─────────────────────────────────────────────────────────────
