@@ -11,6 +11,11 @@ const session = require('express-session');
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const SQLiteStore = require('connect-sqlite3')(session);
+const Anthropic = require('@anthropic-ai/sdk');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, BorderStyle, AlignmentType } = require('docx');
+const PDFDocument = require('pdfkit');
+const crypto = require('crypto');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -151,6 +156,35 @@ db.serialize(() => {
             });
         });
         console.log('✅ Tabla tasks lista');
+    });
+
+    db.run(`
+        CREATE TABLE IF NOT EXISTS user_settings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            key TEXT NOT NULL,
+            value_enc TEXT NOT NULL,
+            iv TEXT NOT NULL,
+            auth_tag TEXT NOT NULL,
+            UNIQUE(user_id, key)
+        )
+    `, () => { console.log('✅ Tabla user_settings lista'); });
+
+    db.run(`
+        CREATE TABLE IF NOT EXISTS requirements (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            title TEXT NOT NULL,
+            description TEXT DEFAULT '',
+            ai_provider TEXT DEFAULT 'claude',
+            context_summary TEXT DEFAULT '',
+            messages TEXT DEFAULT '[]',
+            status TEXT DEFAULT 'draft',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    `, () => {
+        console.log('✅ Tabla requirements lista');
     });
 });
 
@@ -820,6 +854,372 @@ app.get('/api/stats', requireAuth, resolveViewUser, (req, res) => {
 
 app.get('/logo.png', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'logo.png'));
+});
+
+// ── Cifrado de ajustes ────────────────────────────────────────────────────────
+
+const MASTER_SECRET = process.env.SESSION_SECRET || 'quickplan-dev-secret-change-in-prod';
+const ENC_KEY = crypto.scryptSync(MASTER_SECRET, 'qp-settings-salt', 32);
+
+function encryptValue(plain) {
+    const iv = crypto.randomBytes(12);
+    const cipher = crypto.createCipheriv('aes-256-gcm', ENC_KEY, iv);
+    const enc = Buffer.concat([cipher.update(plain, 'utf8'), cipher.final()]);
+    return { value_enc: enc.toString('hex'), iv: iv.toString('hex'), auth_tag: cipher.getAuthTag().toString('hex') };
+}
+
+function decryptValue(value_enc, iv, auth_tag) {
+    const decipher = crypto.createDecipheriv('aes-256-gcm', ENC_KEY, Buffer.from(iv, 'hex'));
+    decipher.setAuthTag(Buffer.from(auth_tag, 'hex'));
+    return decipher.update(value_enc, 'hex', 'utf8') + decipher.final('utf8');
+}
+
+function getUserSetting(userId, key) {
+    return new Promise((resolve) => {
+        db.get('SELECT value_enc, iv, auth_tag FROM user_settings WHERE user_id=? AND key=?', [userId, key], (err, row) => {
+            if (err || !row) return resolve(null);
+            try { resolve(decryptValue(row.value_enc, row.iv, row.auth_tag)); }
+            catch { resolve(null); }
+        });
+    });
+}
+
+function setUserSetting(userId, key, value) {
+    const { value_enc, iv, auth_tag } = encryptValue(value);
+    return new Promise((resolve, reject) => {
+        db.run(
+            'INSERT INTO user_settings (user_id, key, value_enc, iv, auth_tag) VALUES (?,?,?,?,?) ON CONFLICT(user_id,key) DO UPDATE SET value_enc=excluded.value_enc, iv=excluded.iv, auth_tag=excluded.auth_tag',
+            [userId, key, value_enc, iv, auth_tag],
+            (err) => err ? reject(err) : resolve()
+        );
+    });
+}
+
+// Rutas de configuración
+app.get('/api/settings', requireAuth, async (req, res) => {
+    const anthropicKey = await getUserSetting(req.user.id, 'anthropic_api_key');
+    const geminiKey = await getUserSetting(req.user.id, 'gemini_api_key');
+    res.json({
+        has_anthropic_key: !!anthropicKey,
+        has_gemini_key: !!geminiKey,
+        anthropic_key_preview: anthropicKey ? anthropicKey.slice(0, 8) + '…' : null,
+        gemini_key_preview: geminiKey ? geminiKey.slice(0, 8) + '…' : null
+    });
+});
+
+app.put('/api/settings', requireAuth, async (req, res) => {
+    const { anthropic_api_key, gemini_api_key } = req.body;
+    try {
+        if (anthropic_api_key !== undefined) {
+            if (anthropic_api_key === '') {
+                db.run('DELETE FROM user_settings WHERE user_id=? AND key=?', [req.user.id, 'anthropic_api_key']);
+            } else {
+                await setUserSetting(req.user.id, 'anthropic_api_key', anthropic_api_key);
+            }
+        }
+        if (gemini_api_key !== undefined) {
+            if (gemini_api_key === '') {
+                db.run('DELETE FROM user_settings WHERE user_id=? AND key=?', [req.user.id, 'gemini_api_key']);
+            } else {
+                await setUserSetting(req.user.id, 'gemini_api_key', gemini_api_key);
+            }
+        }
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// ── Toma de Requerimientos ────────────────────────────────────────────────────
+
+const REQUIREMENTS_SYSTEM_PROMPT = `Eres un experto en levantamiento de requerimientos de software de la suite Planning by andyjara.dev.
+Tu rol es:
+1. Hacer preguntas específicas y concisas para entender el proyecto/sistema a construir
+2. Identificar actores, funcionalidades, restricciones y prioridades
+3. Proponer un plan estructurado con tareas, horas estimadas y recursos sugeridos
+4. Cuando el usuario lo solicite, generar un documento formal de requerimientos
+5. Cuando el usuario solicite importar tareas, responder ÚNICAMENTE con un JSON válido con este formato exacto:
+   {"tasks":[{"tarea":"nombre tarea","horas":N,"recurso":"recurso","observaciones":"obs","subtasks":[{"tarea":"sub","horas":N,"recurso":"rec","observaciones":"obs"}]}]}
+
+Responde siempre en español. Sé conciso pero completo. Haz máximo 3 preguntas por mensaje.`;
+
+const MAX_MESSAGES_BEFORE_SUMMARY = 10;
+const MESSAGES_TO_KEEP_AFTER_SUMMARY = 6;
+
+async function callAI(provider, messages, contextSummary, apiKey) {
+    if (!apiKey) throw new Error(`No hay API key configurada para ${provider}. Configúrala en ⚙ Ajustes.`);
+
+    const historyToSend = messages.length > MAX_MESSAGES_BEFORE_SUMMARY
+        ? messages.slice(-MESSAGES_TO_KEEP_AFTER_SUMMARY)
+        : messages;
+
+    const systemWithSummary = contextSummary
+        ? `${REQUIREMENTS_SYSTEM_PROMPT}\n\n## Contexto previo resumido:\n${contextSummary}`
+        : REQUIREMENTS_SYSTEM_PROMPT;
+
+    if (provider === 'gemini') {
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        const chat = model.startChat({
+            systemInstruction: systemWithSummary,
+            history: historyToSend.slice(0, -1).map(m => ({
+                role: m.role === 'assistant' ? 'model' : 'user',
+                parts: [{ text: m.content }]
+            }))
+        });
+        const result = await chat.sendMessage(historyToSend[historyToSend.length - 1].content);
+        return result.response.text();
+    } else {
+        const anthropic = new Anthropic({ apiKey });
+        const response = await anthropic.messages.create({
+            model: 'claude-haiku-4-5-20251001',
+            max_tokens: 1024,
+            system: systemWithSummary,
+            messages: historyToSend.map(m => ({ role: m.role, content: m.content }))
+        });
+        return response.content[0].text;
+    }
+}
+
+async function generateContextSummary(provider, messages, apiKey) {
+    const summaryPrompt = 'Resume en máximo 300 palabras los requerimientos discutidos hasta ahora: actores, funcionalidades clave, restricciones y decisiones tomadas.';
+    const msgs = [...messages, { role: 'user', content: summaryPrompt }];
+    return callAI(provider, msgs, '', apiKey);
+}
+
+function buildDocxDocument(req, title, description, messages, userName) {
+    const date = new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
+    const children = [
+        new Paragraph({ text: 'Planning by andyjara.dev', heading: HeadingLevel.TITLE, alignment: AlignmentType.CENTER }),
+        new Paragraph({ text: title, heading: HeadingLevel.HEADING_1, alignment: AlignmentType.CENTER }),
+        new Paragraph({ children: [new TextRun({ text: `Generado el ${date}`, color: '666666' })], alignment: AlignmentType.CENTER }),
+        new Paragraph({ children: [new TextRun({ text: `Responsable: ${userName}`, color: '666666' })], alignment: AlignmentType.CENTER }),
+        new Paragraph({ text: '' }),
+        new Paragraph({ text: 'Descripción General', heading: HeadingLevel.HEADING_2 }),
+        new Paragraph({ text: description || 'Sin descripción adicional.' }),
+        new Paragraph({ text: '' }),
+        new Paragraph({ text: 'Conversación de Levantamiento', heading: HeadingLevel.HEADING_2 }),
+    ];
+
+    for (const msg of messages) {
+        const isUser = msg.role === 'user';
+        children.push(new Paragraph({
+            children: [
+                new TextRun({ text: isUser ? 'Usuario: ' : 'Asistente IA: ', bold: true, color: isUser ? '1a56db' : '047857' }),
+                new TextRun({ text: msg.content })
+            ]
+        }));
+        children.push(new Paragraph({ text: '' }));
+    }
+
+    children.push(new Paragraph({ text: 'Generado por Planning by andyjara.dev', alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Generado por Planning by andyjara.dev', color: '888888', size: 18 })] }));
+
+    return new Document({ sections: [{ properties: {}, children }] });
+}
+
+function buildPdfDocument(res, title, description, messages, userName) {
+    const doc = new PDFDocument({ margin: 60, size: 'A4' });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${title.replace(/[^a-z0-9]/gi, '_')}.pdf"`);
+    doc.pipe(res);
+
+    const date = new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
+    doc.fontSize(22).font('Helvetica-Bold').text('Planning by andyjara.dev', { align: 'center' });
+    doc.moveDown(0.5);
+    doc.fontSize(16).text(title, { align: 'center' });
+    doc.moveDown(0.3);
+    doc.fontSize(10).font('Helvetica').fillColor('#666666').text(`Generado el ${date}`, { align: 'center' });
+    doc.text(`Responsable: ${userName}`, { align: 'center' });
+    doc.fillColor('#000000').moveDown(1);
+
+    doc.fontSize(13).font('Helvetica-Bold').text('Descripción General');
+    doc.moveDown(0.3);
+    doc.fontSize(10).font('Helvetica').text(description || 'Sin descripción adicional.');
+    doc.moveDown(1);
+
+    doc.fontSize(13).font('Helvetica-Bold').text('Conversación de Levantamiento');
+    doc.moveDown(0.5);
+
+    for (const msg of messages) {
+        const isUser = msg.role === 'user';
+        doc.fontSize(10).font('Helvetica-Bold').fillColor(isUser ? '#1a56db' : '#047857')
+            .text(isUser ? 'Usuario:' : 'Asistente IA:', { continued: false });
+        doc.font('Helvetica').fillColor('#000000').text(msg.content, { indent: 10 });
+        doc.moveDown(0.5);
+    }
+
+    doc.moveDown(1);
+    doc.fontSize(9).fillColor('#888888').text('Generado por Planning by andyjara.dev', { align: 'center' });
+    doc.end();
+}
+
+// CRUD requerimientos
+app.get('/api/requirements', requireAuth, (req, res) => {
+    db.all('SELECT id, title, description, ai_provider, status, created_at, updated_at FROM requirements WHERE user_id = ? ORDER BY updated_at DESC',
+        [req.user.id], (err, rows) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json(rows);
+        });
+});
+
+app.post('/api/requirements', requireAuth, (req, res) => {
+    const { title, description, ai_provider } = req.body;
+    if (!title) return res.status(400).json({ error: 'title requerido' });
+    db.run('INSERT INTO requirements (user_id, title, description, ai_provider) VALUES (?, ?, ?, ?)',
+        [req.user.id, title, description || '', ai_provider || 'claude'],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            db.get('SELECT * FROM requirements WHERE id = ?', [this.lastID], (e, row) => res.json(row));
+        });
+});
+
+app.get('/api/requirements/:id', requireAuth, (req, res) => {
+    db.get('SELECT * FROM requirements WHERE id = ? AND user_id = ?', [req.params.id, req.user.id], (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!row) return res.status(404).json({ error: 'No encontrado' });
+        row.messages = JSON.parse(row.messages || '[]');
+        res.json(row);
+    });
+});
+
+app.put('/api/requirements/:id', requireAuth, (req, res) => {
+    const { title, description, ai_provider, status } = req.body;
+    db.run('UPDATE requirements SET title=COALESCE(?,title), description=COALESCE(?,description), ai_provider=COALESCE(?,ai_provider), status=COALESCE(?,status), updated_at=CURRENT_TIMESTAMP WHERE id=? AND user_id=?',
+        [title, description, ai_provider, status, req.params.id, req.user.id],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            db.get('SELECT * FROM requirements WHERE id = ?', [req.params.id], (e, row) => {
+                row.messages = JSON.parse(row.messages || '[]');
+                res.json(row);
+            });
+        });
+});
+
+app.delete('/api/requirements/:id', requireAuth, (req, res) => {
+    db.run('DELETE FROM requirements WHERE id = ? AND user_id = ?', [req.params.id, req.user.id], (err) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true });
+    });
+});
+
+app.post('/api/requirements/:id/chat', requireAuth, async (req, res) => {
+    const { message } = req.body;
+    if (!message) return res.status(400).json({ error: 'message requerido' });
+
+    db.get('SELECT * FROM requirements WHERE id = ? AND user_id = ?', [req.params.id, req.user.id], async (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!row) return res.status(404).json({ error: 'No encontrado' });
+
+        let messages = JSON.parse(row.messages || '[]');
+        messages.push({ role: 'user', content: message });
+
+        try {
+            const settingKey = row.ai_provider === 'gemini' ? 'gemini_api_key' : 'anthropic_api_key';
+            const apiKey = await getUserSetting(req.user.id, settingKey);
+            const aiReply = await callAI(row.ai_provider, messages, row.context_summary, apiKey);
+            messages.push({ role: 'assistant', content: aiReply });
+
+            let newSummary = row.context_summary;
+            if (messages.length >= MAX_MESSAGES_BEFORE_SUMMARY && messages.length % MAX_MESSAGES_BEFORE_SUMMARY === 0) {
+                try {
+                    newSummary = await generateContextSummary(row.ai_provider, messages, apiKey);
+                    messages = messages.slice(-MESSAGES_TO_KEEP_AFTER_SUMMARY);
+                } catch (e) {
+                    console.warn('No se pudo generar resumen:', e.message);
+                }
+            }
+
+            db.run('UPDATE requirements SET messages=?, context_summary=?, updated_at=CURRENT_TIMESTAMP WHERE id=?',
+                [JSON.stringify(messages), newSummary, row.id], (e) => {
+                    if (e) return res.status(500).json({ error: e.message });
+                    res.json({ reply: aiReply, messages });
+                });
+        } catch (e) {
+            console.error('Error AI:', e.message);
+            res.status(500).json({ error: `Error del proveedor IA: ${e.message}` });
+        }
+    });
+});
+
+app.post('/api/requirements/:id/export', requireAuth, async (req, res) => {
+    const { format } = req.body; // 'docx' | 'pdf'
+    db.get('SELECT * FROM requirements WHERE id = ? AND user_id = ?', [req.params.id, req.user.id], async (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!row) return res.status(404).json({ error: 'No encontrado' });
+
+        const messages = JSON.parse(row.messages || '[]');
+        const userName = req.user.name;
+
+        if (format === 'pdf') {
+            buildPdfDocument(res, row.title, row.description, messages, userName);
+        } else {
+            try {
+                const doc = buildDocxDocument(req, row.title, row.description, messages, userName);
+                const buffer = await Packer.toBuffer(doc);
+                res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+                res.setHeader('Content-Disposition', `attachment; filename="${row.title.replace(/[^a-z0-9]/gi, '_')}.docx"`);
+                res.send(buffer);
+            } catch (e) {
+                res.status(500).json({ error: e.message });
+            }
+        }
+    });
+});
+
+app.post('/api/requirements/:id/import-tasks', requireAuth, async (req, res) => {
+    db.get('SELECT * FROM requirements WHERE id = ? AND user_id = ?', [req.params.id, req.user.id], async (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!row) return res.status(404).json({ error: 'No encontrado' });
+
+        const messages = JSON.parse(row.messages || '[]');
+        const importPrompt = 'Genera ÚNICAMENTE el JSON de tareas para importar al sistema. Sin explicación, solo el JSON con el formato: {"tasks":[{"tarea":"...","horas":N,"recurso":"...","observaciones":"...","subtasks":[]}]}';
+        const msgsWithPrompt = [...messages, { role: 'user', content: importPrompt }];
+
+        try {
+            const settingKey = row.ai_provider === 'gemini' ? 'gemini_api_key' : 'anthropic_api_key';
+            const apiKey = await getUserSetting(req.user.id, settingKey);
+            const aiReply = await callAI(row.ai_provider, msgsWithPrompt, row.context_summary, apiKey);
+            const jsonMatch = aiReply.match(/\{[\s\S]*\}/);
+            if (!jsonMatch) return res.status(422).json({ error: 'El IA no generó JSON válido', raw: aiReply });
+
+            const { tasks } = JSON.parse(jsonMatch[0]);
+            if (!Array.isArray(tasks)) return res.status(422).json({ error: 'Formato de tareas inválido' });
+
+            const userId = req.user.id;
+            let created = 0;
+
+            const insertTask = (task, parentId) => new Promise((resolve, reject) => {
+                const table = parentId ? 'tasks' : 'tasks';
+                db.get('SELECT MAX(sort_order) as maxOrder FROM tasks WHERE user_id = ? AND is_subtask = 0', [userId], (e, r) => {
+                    const sortOrder = ((r && r.maxOrder) || 0) + 1;
+                    if (parentId) {
+                        db.run('INSERT INTO tasks (tarea, horas, recurso, observaciones, user_id, parent_id, is_subtask, sort_order) VALUES (?,?,?,?,?,?,1,?)',
+                            [task.tarea, task.horas || 0, task.recurso || '', task.observaciones || '', userId, parentId, sortOrder],
+                            function(err) { if (err) reject(err); else { created++; resolve(this.lastID); } });
+                    } else {
+                        db.run('INSERT INTO tasks (tarea, horas, recurso, observaciones, user_id, sort_order) VALUES (?,?,?,?,?,?)',
+                            [task.tarea, task.horas || 0, task.recurso || '', task.observaciones || '', userId, sortOrder],
+                            function(err) { if (err) reject(err); else { created++; resolve(this.lastID); } });
+                    }
+                });
+            });
+
+            for (const task of tasks) {
+                const parentId = await insertTask(task, null);
+                if (task.subtasks && Array.isArray(task.subtasks)) {
+                    for (const sub of task.subtasks) {
+                        await insertTask(sub, parentId);
+                    }
+                }
+            }
+
+            invalidateStatsCache(userId);
+            res.json({ success: true, created });
+        } catch (e) {
+            console.error('Error import-tasks:', e.message);
+            res.status(500).json({ error: e.message });
+        }
+    });
 });
 
 // ── SPA fallback ─────────────────────────────────────────────────────────────

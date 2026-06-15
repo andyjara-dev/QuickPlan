@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>planning.andyjara.dev</title>
+    <title>Planning by andyjara.dev</title>
 
     <link href="https://fonts.googleapis.com/css?family=Material+Icons" rel="stylesheet" type="text/css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -606,6 +606,119 @@
         .balance-ok    { color: #22c55e; background: rgba(34,197,94,0.13); }
         .balance-under { color: #f59e0b; background: rgba(245,158,11,0.13); }
         .balance-over  { color: #ef4444; background: rgba(239,68,68,0.13); }
+
+        /* ── Nav tabs ── */
+        .nav-tabs {
+            display: flex; gap: 4px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 24px;
+            padding-top: 12px;
+        }
+        .nav-tab {
+            padding: 8px 18px; border-radius: 8px 8px 0 0;
+            font-size: 0.85rem; font-weight: 600; cursor: pointer;
+            color: var(--text-muted); background: transparent;
+            border: none; border-bottom: 2px solid transparent;
+            transition: color 0.15s, border-color 0.15s;
+        }
+        .nav-tab:hover { color: var(--text-primary); }
+        .nav-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+        /* ── Requirements list ── */
+        .req-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 16px; margin-top: 16px;
+        }
+        .req-card {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 12px; padding: 18px; cursor: pointer;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+        .req-card:hover { border-color: var(--accent); box-shadow: 0 0 0 1px rgba(79,142,247,0.2); }
+        .req-card-title { font-weight: 700; font-size: 1rem; margin: 0 0 6px; }
+        .req-card-meta { font-size: 0.75rem; color: var(--text-muted); display: flex; gap: 8px; flex-wrap: wrap; }
+        .req-card-actions { display: flex; gap: 6px; margin-top: 12px; flex-wrap: wrap; }
+        .badge-provider { padding: 2px 8px; border-radius: 10px; font-size: 0.72rem; font-weight: 600; }
+        .badge-claude { background: rgba(79,142,247,0.15); color: #4f8ef7; }
+        .badge-gemini { background: rgba(16,185,129,0.15); color: #10b981; }
+        .badge-draft { background: rgba(245,158,11,0.12); color: #f59e0b; }
+        .badge-complete { background: rgba(16,185,129,0.12); color: #10b981; }
+
+        /* ── Chat interface ── */
+        .req-chat-layout {
+            display: grid; grid-template-columns: 240px 1fr;
+            gap: 20px; height: calc(100vh - 220px); min-height: 500px;
+        }
+        @media(max-width:768px) { .req-chat-layout { grid-template-columns: 1fr; height: auto; } }
+
+        .req-sidebar {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 12px;
+            overflow-y: auto;
+        }
+        .req-sidebar label { font-size: 0.75rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+        .req-sidebar input, .req-sidebar select, .req-sidebar textarea {
+            width: 100%; background: var(--bg-input); border: 1px solid var(--border);
+            color: var(--text-primary); border-radius: 8px; padding: 8px 10px;
+            font-size: 0.85rem; font-family: inherit; resize: vertical;
+        }
+        .req-sidebar input:focus, .req-sidebar select:focus, .req-sidebar textarea:focus {
+            outline: none; border-color: var(--border-focus);
+        }
+        .req-chat-panel {
+            display: flex; flex-direction: column;
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 12px; overflow: hidden;
+        }
+        .req-chat-header {
+            padding: 12px 16px; border-bottom: 1px solid var(--border);
+            display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+        }
+        .chat-messages {
+            flex: 1; overflow-y: auto; padding: 16px;
+            display: flex; flex-direction: column; gap: 12px;
+        }
+        .chat-msg {
+            max-width: 82%; padding: 10px 14px;
+            border-radius: 12px; font-size: 0.88rem; line-height: 1.55;
+            white-space: pre-wrap; word-break: break-word;
+        }
+        .chat-msg.user {
+            align-self: flex-end;
+            background: var(--accent-dim); color: #fff; border-radius: 12px 12px 2px 12px;
+        }
+        .chat-msg.assistant {
+            align-self: flex-start;
+            background: var(--bg-elevated); color: var(--text-primary); border-radius: 12px 12px 12px 2px;
+        }
+        .chat-msg-label { font-size: 0.7rem; color: var(--text-faint); margin-bottom: 3px; }
+        .chat-input-area {
+            padding: 12px 16px; border-top: 1px solid var(--border);
+            display: flex; gap: 8px;
+        }
+        .chat-input {
+            flex: 1; background: var(--bg-input); border: 1px solid var(--border);
+            color: var(--text-primary); border-radius: 8px; padding: 10px 12px;
+            font-size: 0.9rem; font-family: inherit; resize: none;
+            min-height: 42px; max-height: 120px;
+        }
+        .chat-input:focus { outline: none; border-color: var(--border-focus); }
+        .chat-typing { align-self: flex-start; color: var(--text-muted); font-size: 0.8rem; padding: 4px 14px; }
+        .req-empty {
+            text-align: center; padding: 60px 20px; color: var(--text-muted);
+        }
+        .req-empty-icon { font-size: 3rem; margin-bottom: 12px; }
+
+        /* ── Settings modal ── */
+        .settings-field { margin-bottom: 16px; }
+        .settings-field label { display: block; font-size: 0.78rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+        .settings-field input { width: 100%; background: var(--bg-input); border: 1px solid var(--border); color: var(--text-primary); border-radius: 8px; padding: 9px 12px; font-size: 0.9rem; font-family: monospace; }
+        .settings-field input:focus { outline: none; border-color: var(--border-focus); }
+        .settings-key-row { display: flex; gap: 8px; align-items: center; }
+        .settings-key-row input { flex: 1; }
+        .key-badge { font-size: 0.72rem; padding: 3px 8px; border-radius: 8px; font-weight: 600; white-space: nowrap; }
+        .key-set { background: rgba(16,185,129,0.12); color: #10b981; }
+        .key-unset { background: rgba(239,68,68,0.1); color: #ef4444; }
     </style>
 </head>
 <body>
@@ -615,7 +728,7 @@
         <div v-if="!currentUser" class="login-screen">
             <div class="login-card">
                 <div class="login-logo">
-                    <img src="/logo.png" alt="planning.andyjara.dev">
+                    <img src="/logo.png" alt="Planning by andyjara.dev">
                 </div>
                 <p class="login-subtitle">Sistema de gestión de tareas colaborativo</p>
 
@@ -627,6 +740,47 @@
                     <span class="google-icon"></span>
                     Iniciar sesión con Google
                 </a>
+            </div>
+        </div>
+
+        <!-- Modal de Ajustes (API Keys) -->
+        <div v-if="showSettingsDialog" class="modal-overlay" @click.self="showSettingsDialog = false">
+            <div class="modal" style="max-width:460px;">
+                <div class="modal-header">
+                    <h2 class="modal-title">⚙ Ajustes de IA</h2>
+                    <button class="modal-close" @click="showSettingsDialog = false">✕</button>
+                </div>
+                <div class="modal-body">
+                    <p style="font-size:0.83rem;color:var(--text-muted);margin:0 0 18px;">Las API keys se guardan cifradas en tu cuenta. Nunca se envían al servidor en texto plano.</p>
+
+                    <div class="settings-field">
+                        <label>◆ Claude API Key (Anthropic)</label>
+                        <div class="settings-key-row">
+                            <input type="password" v-model="settingsForm.anthropic_api_key" placeholder="sk-ant-…" autocomplete="off">
+                            <span class="key-badge" :class="settings.has_anthropic_key ? 'key-set' : 'key-unset'">
+                                {{ settings.has_anthropic_key ? '✓ ' + settings.anthropic_key_preview : 'No configurada' }}
+                            </span>
+                        </div>
+                        <div style="font-size:0.72rem;color:var(--text-faint);margin-top:4px;">Deja en blanco para mantener la actual. Ingresa un espacio para eliminarla.</div>
+                    </div>
+
+                    <div class="settings-field">
+                        <label>✦ Gemini API Key (Google)</label>
+                        <div class="settings-key-row">
+                            <input type="password" v-model="settingsForm.gemini_api_key" placeholder="AIza…" autocomplete="off">
+                            <span class="key-badge" :class="settings.has_gemini_key ? 'key-set' : 'key-unset'">
+                                {{ settings.has_gemini_key ? '✓ ' + settings.gemini_key_preview : 'No configurada' }}
+                            </span>
+                        </div>
+                        <div style="font-size:0.72rem;color:var(--text-faint);margin-top:4px;">Deja en blanco para mantener la actual. Ingresa un espacio para eliminarla.</div>
+                    </div>
+                </div>
+                <div class="modal-footer" style="padding:16px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;">
+                    <button class="btn btn-secondary" @click="showSettingsDialog = false">Cancelar</button>
+                    <button class="btn btn-primary" @click="saveSettings" :disabled="settingsSaving">
+                        {{ settingsSaving ? 'Guardando…' : 'Guardar' }}
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -782,11 +936,12 @@
             <!-- Header -->
             <div class="header">
                 <div class="header-logo">
-                    <img src="/logo.png" alt="planning.andyjara.dev">
+                    <img src="/logo.png" alt="Planning by andyjara.dev">
                 </div>
                 <div class="header-user">
-                    <div v-if="!viewingUser">
+                    <div v-if="!viewingUser" style="display:flex;gap:6px;">
                         <button class="btn btn-secondary btn-small" @click="openShareDialog">🔗 Compartir plan</button>
+                        <button class="btn btn-secondary btn-small" @click="openSettings" title="Ajustes de IA">⚙</button>
                     </div>
                     <div v-if="currentUser.avatar" style="width:36px;height:36px;border-radius:50%;overflow:hidden;flex-shrink:0;">
                         <img :src="currentUser.avatar" style="width:100%;height:100%;object-fit:cover;" referrerpolicy="no-referrer">
@@ -798,6 +953,12 @@
                     </div>
                     <a href="/auth/logout" class="btn btn-secondary btn-small">Salir</a>
                 </div>
+            </div>
+
+            <!-- Nav tabs -->
+            <div class="nav-tabs" v-if="!viewingUser">
+                <button class="nav-tab" :class="{active: activeTab==='planning'}" @click="activeTab='planning'">📋 Planificación</button>
+                <button class="nav-tab" :class="{active: activeTab==='requirements'}" @click="activeTab='requirements'; loadRequirements()">🧠 Requerimientos</button>
             </div>
 
             <!-- Banner plan compartido -->
@@ -813,6 +974,120 @@
                 </span>
                 <button class="btn btn-secondary btn-small" @click="backToMyPlan">Volver a mi plan</button>
             </div>
+
+            <!-- ══ Vista: Requerimientos ══ -->
+            <div v-if="activeTab==='requirements' && !viewingUser">
+
+                <!-- Lista de requerimientos -->
+                <div v-if="!activeRequirement">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+                        <h2 style="margin:0;font-size:1.2rem;">Tomas de Requerimiento</h2>
+                        <button class="btn btn-primary" @click="openNewRequirement">+ Nueva toma</button>
+                    </div>
+
+                    <div v-if="requirements.length===0" class="req-empty">
+                        <div class="req-empty-icon">🧠</div>
+                        <p>No hay tomas de requerimiento aún.</p>
+                        <button class="btn btn-primary" @click="openNewRequirement">Crear primera toma</button>
+                    </div>
+
+                    <div class="req-grid" v-else>
+                        <div class="req-card" v-for="req in requirements" :key="req.id" @click="openRequirement(req)">
+                            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                                <span :class="'badge-provider badge-'+req.ai_provider">{{ req.ai_provider==='claude' ? '◆ Claude' : '✦ Gemini' }}</span>
+                                <span :class="'badge-provider badge-'+req.status">{{ req.status==='draft' ? 'Borrador' : 'Completo' }}</span>
+                            </div>
+                            <div class="req-card-title">{{ req.title }}</div>
+                            <div class="req-card-meta">
+                                <span>{{ formatDate(req.updated_at) }}</span>
+                                <span v-if="req.description">· {{ req.description.slice(0,60) }}{{ req.description.length>60?'…':'' }}</span>
+                            </div>
+                            <div class="req-card-actions" @click.stop>
+                                <button class="btn btn-primary btn-small" @click="openRequirement(req)">Abrir</button>
+                                <button class="btn btn-secondary btn-small" @click="exportRequirement(req.id,'docx')">Word</button>
+                                <button class="btn btn-secondary btn-small" @click="exportRequirement(req.id,'pdf')">PDF</button>
+                                <button class="btn btn-danger btn-small" @click="deleteRequirement(req.id)">✕</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chat de requerimiento -->
+                <div v-else>
+                    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+                        <button class="btn btn-secondary btn-small" @click="activeRequirement=null">← Volver</button>
+                        <h2 style="margin:0;font-size:1.1rem;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ activeRequirement.title }}</h2>
+                        <button class="btn btn-secondary btn-small" @click="exportRequirement(activeRequirement.id,'docx')">⬇ Word</button>
+                        <button class="btn btn-secondary btn-small" @click="exportRequirement(activeRequirement.id,'pdf')">⬇ PDF</button>
+                        <button class="btn btn-primary btn-small" @click="importRequirementTasks">📋 Importar tareas</button>
+                    </div>
+
+                    <div class="req-chat-layout">
+                        <!-- Sidebar metadata -->
+                        <div class="req-sidebar">
+                            <div>
+                                <label>Título</label>
+                                <input v-model="activeRequirement.title" @blur="saveRequirementMeta" placeholder="Título del proyecto">
+                            </div>
+                            <div>
+                                <label>Descripción</label>
+                                <textarea v-model="activeRequirement.description" @blur="saveRequirementMeta" rows="4" placeholder="Descripción breve…"></textarea>
+                            </div>
+                            <div>
+                                <label>Proveedor IA</label>
+                                <select v-model="activeRequirement.ai_provider" @change="saveRequirementMeta">
+                                    <option value="claude">◆ Claude (Anthropic)</option>
+                                    <option value="gemini">✦ Gemini (Google)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label>Estado</label>
+                                <select v-model="activeRequirement.status" @change="saveRequirementMeta">
+                                    <option value="draft">Borrador</option>
+                                    <option value="complete">Completo</option>
+                                </select>
+                            </div>
+                            <div style="font-size:0.72rem;color:var(--text-faint);margin-top:auto;">
+                                Última actualización: {{ formatDate(activeRequirement.updated_at) }}
+                            </div>
+                        </div>
+
+                        <!-- Chat panel -->
+                        <div class="req-chat-panel">
+                            <div class="req-chat-header">
+                                <span style="font-size:0.85rem;font-weight:600;flex:1;">Conversación con IA</span>
+                                <span v-if="reqMessages.length" style="font-size:0.75rem;color:var(--text-muted);">{{ Math.ceil(reqMessages.length/2) }} intercambios</span>
+                            </div>
+                            <div class="chat-messages" ref="chatMessages">
+                                <div v-if="reqMessages.length===0" style="text-align:center;color:var(--text-muted);padding:40px;font-size:0.88rem;">
+                                    <div v-if="!settings.has_anthropic_key && activeRequirement && activeRequirement.ai_provider==='claude'" style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:10px;padding:14px;margin-bottom:16px;color:#ef4444;font-size:0.82rem;">
+                                        ⚠ No hay API key de Claude configurada. <button class="btn btn-secondary btn-small" style="margin-left:6px;" @click="openSettings">⚙ Configurar</button>
+                                    </div>
+                                    <div v-else-if="!settings.has_gemini_key && activeRequirement && activeRequirement.ai_provider==='gemini'" style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:10px;padding:14px;margin-bottom:16px;color:#ef4444;font-size:0.82rem;">
+                                        ⚠ No hay API key de Gemini configurada. <button class="btn btn-secondary btn-small" style="margin-left:6px;" @click="openSettings">⚙ Configurar</button>
+                                    </div>
+                                    Inicia describiendo el proyecto o sistema que necesitas desarrollar.
+                                </div>
+                                <div v-for="(msg, i) in reqMessages" :key="i">
+                                    <div class="chat-msg-label">{{ msg.role==='user' ? '👤 Tú' : '🤖 IA' }}</div>
+                                    <div :class="'chat-msg '+msg.role">{{ msg.content }}</div>
+                                </div>
+                                <div v-if="reqIsTyping" class="chat-typing">🤖 IA escribiendo…</div>
+                            </div>
+                            <div class="chat-input-area">
+                                <textarea class="chat-input" v-model="reqInput"
+                                    placeholder="Describe el proyecto, haz preguntas o pide el plan final…"
+                                    @keydown.enter.exact.prevent="sendReqMessage"
+                                    rows="2"></textarea>
+                                <button class="btn btn-primary" :disabled="reqIsTyping || !reqInput.trim()" @click="sendReqMessage">Enviar</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ══ Vista: Planificación ══ -->
+            <div v-show="activeTab==='planning' || viewingUser">
 
             <!-- Estadísticas -->
             <div class="stats-container">
@@ -1103,9 +1378,11 @@
                 </table>
             </div>
 
+            </div><!-- /vista planificación -->
+
             <!-- Footer -->
             <div class="footer">
-                <p>planning.andyjara.dev v2.0.0 · Node.js + Express + SQLite + Vue.js ·
+                <p>Planning by andyjara.dev v2.0.0 · Node.js + Express + SQLite + Vue.js ·
                    por <a href="https://andyjara.dev" target="_blank" rel="noopener">andyjara.dev</a>
                 </p>
             </div>
@@ -1161,7 +1438,20 @@
                     newShareExpiry: '',
                     editingShare: null,
                     editSharePermission: 'read',
-                    editShareExpiry: ''
+                    editShareExpiry: '',
+                    // Navegación
+                    activeTab: 'planning',
+                    // Ajustes / API keys
+                    showSettingsDialog: false,
+                    settings: { has_anthropic_key: false, has_gemini_key: false },
+                    settingsForm: { anthropic_api_key: '', gemini_api_key: '' },
+                    settingsSaving: false,
+                    // Requerimientos
+                    requirements: [],
+                    activeRequirement: null,
+                    reqMessages: [],
+                    reqInput: '',
+                    reqIsTyping: false
                 };
             },
 
@@ -1236,7 +1526,7 @@
                         const res = await fetch('/api/me');
                         if (res.ok) {
                             this.currentUser = await res.json();
-                            await Promise.all([this.loadTasks(), this.loadStats(), this.loadShares()]);
+                            await Promise.all([this.loadTasks(), this.loadStats(), this.loadShares(), this.loadSettings()]);
                         }
                     } catch (e) {
                         console.error('Error verificando auth:', e);
@@ -1866,6 +2156,162 @@
                     n.textContent = message;
                     document.body.appendChild(n);
                     setTimeout(() => { if (document.body.contains(n)) document.body.removeChild(n); }, 3000);
+                },
+
+                // ── Ajustes ─────────────────────────────────────────────────
+
+                async loadSettings() {
+                    const data = await this.apiFetch('/api/settings');
+                    if (data) this.settings = data;
+                },
+
+                async openSettings() {
+                    await this.loadSettings();
+                    this.settingsForm = { anthropic_api_key: '', gemini_api_key: '' };
+                    this.showSettingsDialog = true;
+                },
+
+                async saveSettings() {
+                    this.settingsSaving = true;
+                    const body = {};
+                    // Blank = keep current; single space = delete; otherwise = update
+                    if (this.settingsForm.anthropic_api_key !== '')
+                        body.anthropic_api_key = this.settingsForm.anthropic_api_key.trim();
+                    if (this.settingsForm.gemini_api_key !== '')
+                        body.gemini_api_key = this.settingsForm.gemini_api_key.trim();
+
+                    const data = await this.apiFetch('/api/settings', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(body)
+                    });
+                    this.settingsSaving = false;
+                    if (data) {
+                        await this.loadSettings();
+                        this.settingsForm = { anthropic_api_key: '', gemini_api_key: '' };
+                        this.showSettingsDialog = false;
+                        this.showNotification('API keys guardadas', 'success');
+                    }
+                },
+
+                // ── Requerimientos ──────────────────────────────────────────
+
+                async loadRequirements() {
+                    const data = await this.apiFetch('/api/requirements');
+                    if (data) this.requirements = data;
+                },
+
+                openNewRequirement() {
+                    this.$nextTick(async () => {
+                        const title = prompt('Nombre del proyecto o requerimiento:');
+                        if (!title || !title.trim()) return;
+                        const data = await this.apiFetch('/api/requirements', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ title: title.trim(), ai_provider: 'claude' })
+                        });
+                        if (data) {
+                            this.requirements.unshift(data);
+                            await this.openRequirement(data);
+                        }
+                    });
+                },
+
+                async openRequirement(req) {
+                    const data = await this.apiFetch(`/api/requirements/${req.id}`);
+                    if (!data) return;
+                    this.activeRequirement = data;
+                    this.reqMessages = data.messages || [];
+                    this.reqInput = '';
+                    this.$nextTick(() => this.scrollChat());
+                },
+
+                async saveRequirementMeta() {
+                    if (!this.activeRequirement) return;
+                    const { id, title, description, ai_provider, status } = this.activeRequirement;
+                    const data = await this.apiFetch(`/api/requirements/${id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ title, description, ai_provider, status })
+                    });
+                    if (data) {
+                        this.activeRequirement.updated_at = data.updated_at;
+                        const idx = this.requirements.findIndex(r => r.id === id);
+                        if (idx >= 0) Object.assign(this.requirements[idx], { title, description, ai_provider, status });
+                    }
+                },
+
+                async sendReqMessage() {
+                    const msg = this.reqInput.trim();
+                    if (!msg || this.reqIsTyping || !this.activeRequirement) return;
+                    this.reqInput = '';
+                    this.reqMessages.push({ role: 'user', content: msg });
+                    this.reqIsTyping = true;
+                    this.$nextTick(() => this.scrollChat());
+
+                    const data = await this.apiFetch(`/api/requirements/${this.activeRequirement.id}/chat`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ message: msg })
+                    });
+                    this.reqIsTyping = false;
+                    if (data) {
+                        this.reqMessages = data.messages;
+                        this.$nextTick(() => this.scrollChat());
+                    }
+                },
+
+                scrollChat() {
+                    const el = this.$refs.chatMessages;
+                    if (el) el.scrollTop = el.scrollHeight;
+                },
+
+                async exportRequirement(id, format) {
+                    try {
+                        const resp = await fetch(`/api/requirements/${id}/export`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ format })
+                        });
+                        if (!resp.ok) { this.showNotification('Error al exportar', 'error'); return; }
+                        const blob = await resp.blob();
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        const cd = resp.headers.get('content-disposition') || '';
+                        const match = cd.match(/filename="?([^"]+)"?/);
+                        a.download = match ? match[1] : `requerimiento.${format}`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                        this.showNotification(`Exportado como ${format.toUpperCase()}`, 'success');
+                    } catch (e) {
+                        this.showNotification('Error al exportar: ' + e.message, 'error');
+                    }
+                },
+
+                async importRequirementTasks() {
+                    if (!this.activeRequirement) return;
+                    if (!confirm('¿Importar las tareas generadas por IA al plan de planificación? Se agregarán al final de tu lista actual.')) return;
+                    const data = await this.apiFetch(`/api/requirements/${this.activeRequirement.id}/import-tasks`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({})
+                    });
+                    if (data) {
+                        this.showNotification(`✅ ${data.created} tareas importadas al plan`, 'success');
+                        await this.loadTasks();
+                        await this.loadStats();
+                    }
+                },
+
+                async deleteRequirement(id) {
+                    if (!confirm('¿Eliminar esta toma de requerimiento?')) return;
+                    const data = await this.apiFetch(`/api/requirements/${id}`, { method: 'DELETE' });
+                    if (data) {
+                        this.requirements = this.requirements.filter(r => r.id !== id);
+                        if (this.activeRequirement?.id === id) this.activeRequirement = null;
+                        this.showNotification('Requerimiento eliminado', 'success');
+                    }
                 }
             }
         }).mount('#app');
