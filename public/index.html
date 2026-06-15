@@ -743,6 +743,33 @@
             </div>
         </div>
 
+        <!-- Modal Nueva Toma de Requerimiento -->
+        <div v-if="showNewReqDialog" class="modal-overlay" @click.self="showNewReqDialog = false">
+            <div class="modal" style="max-width:420px;">
+                <div class="modal-header">
+                    <h2 class="modal-title">🧠 Nueva toma de requerimiento</h2>
+                    <button class="modal-close" @click="showNewReqDialog = false">✕</button>
+                </div>
+                <div class="modal-body">
+                    <div class="settings-field">
+                        <label>Nombre del proyecto</label>
+                        <input ref="newReqTitleInput" v-model="newReqTitle" class="input-field" placeholder="Ej: Sistema de facturación" @keyup.enter="confirmNewRequirement">
+                    </div>
+                    <div class="settings-field">
+                        <label>Proveedor IA</label>
+                        <select v-model="newReqProvider" class="input-field">
+                            <option value="claude">◆ Claude (Anthropic)</option>
+                            <option value="gemini">✦ Gemini (Google)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer" style="padding:16px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;">
+                    <button class="btn btn-secondary" @click="showNewReqDialog = false">Cancelar</button>
+                    <button class="btn btn-primary" @click="confirmNewRequirement" :disabled="!newReqTitle.trim()">Crear</button>
+                </div>
+            </div>
+        </div>
+
         <!-- Modal de Ajustes (API Keys) -->
         <div v-if="showSettingsDialog" class="modal-overlay" @click.self="showSettingsDialog = false">
             <div class="modal" style="max-width:460px;">
@@ -1451,7 +1478,10 @@
                     activeRequirement: null,
                     reqMessages: [],
                     reqInput: '',
-                    reqIsTyping: false
+                    reqIsTyping: false,
+                    showNewReqDialog: false,
+                    newReqTitle: '',
+                    newReqProvider: 'claude'
                 };
             },
 
@@ -2161,8 +2191,8 @@
                 // ── Ajustes ─────────────────────────────────────────────────
 
                 async loadSettings() {
-                    const data = await this.apiFetch('/api/settings');
-                    if (data) this.settings = data;
+                    const res = await this.apiFetch('/api/settings');
+                    if (res && res.ok) this.settings = await res.json();
                 },
 
                 async openSettings() {
@@ -2174,19 +2204,18 @@
                 async saveSettings() {
                     this.settingsSaving = true;
                     const body = {};
-                    // Blank = keep current; single space = delete; otherwise = update
                     if (this.settingsForm.anthropic_api_key !== '')
                         body.anthropic_api_key = this.settingsForm.anthropic_api_key.trim();
                     if (this.settingsForm.gemini_api_key !== '')
                         body.gemini_api_key = this.settingsForm.gemini_api_key.trim();
 
-                    const data = await this.apiFetch('/api/settings', {
+                    const res = await this.apiFetch('/api/settings', {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(body)
                     });
                     this.settingsSaving = false;
-                    if (data) {
+                    if (res && res.ok) {
                         await this.loadSettings();
                         this.settingsForm = { anthropic_api_key: '', gemini_api_key: '' };
                         this.showSettingsDialog = false;
@@ -2197,29 +2226,40 @@
                 // ── Requerimientos ──────────────────────────────────────────
 
                 async loadRequirements() {
-                    const data = await this.apiFetch('/api/requirements');
-                    if (data) this.requirements = data;
+                    const res = await this.apiFetch('/api/requirements');
+                    if (res && res.ok) {
+                        const data = await res.json();
+                        if (Array.isArray(data)) this.requirements = data;
+                    }
                 },
 
                 openNewRequirement() {
-                    this.$nextTick(async () => {
-                        const title = prompt('Nombre del proyecto o requerimiento:');
-                        if (!title || !title.trim()) return;
-                        const data = await this.apiFetch('/api/requirements', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ title: title.trim(), ai_provider: 'claude' })
-                        });
-                        if (data) {
-                            this.requirements.unshift(data);
-                            await this.openRequirement(data);
-                        }
+                    this.newReqTitle = '';
+                    this.newReqProvider = 'claude';
+                    this.showNewReqDialog = true;
+                    this.$nextTick(() => this.$refs.newReqTitleInput?.focus());
+                },
+
+                async confirmNewRequirement() {
+                    const title = this.newReqTitle.trim();
+                    if (!title) return;
+                    this.showNewReqDialog = false;
+                    const res = await this.apiFetch('/api/requirements', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ title, ai_provider: this.newReqProvider })
                     });
+                    if (res && res.ok) {
+                        const data = await res.json();
+                        this.requirements.unshift(data);
+                        await this.openRequirement(data);
+                    }
                 },
 
                 async openRequirement(req) {
-                    const data = await this.apiFetch(`/api/requirements/${req.id}`);
-                    if (!data) return;
+                    const res = await this.apiFetch(`/api/requirements/${req.id}`);
+                    if (!res || !res.ok) return;
+                    const data = await res.json();
                     this.activeRequirement = data;
                     this.reqMessages = data.messages || [];
                     this.reqInput = '';
@@ -2229,12 +2269,13 @@
                 async saveRequirementMeta() {
                     if (!this.activeRequirement) return;
                     const { id, title, description, ai_provider, status } = this.activeRequirement;
-                    const data = await this.apiFetch(`/api/requirements/${id}`, {
+                    const res = await this.apiFetch(`/api/requirements/${id}`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ title, description, ai_provider, status })
                     });
-                    if (data) {
+                    if (res && res.ok) {
+                        const data = await res.json();
                         this.activeRequirement.updated_at = data.updated_at;
                         const idx = this.requirements.findIndex(r => r.id === id);
                         if (idx >= 0) Object.assign(this.requirements[idx], { title, description, ai_provider, status });
@@ -2249,15 +2290,20 @@
                     this.reqIsTyping = true;
                     this.$nextTick(() => this.scrollChat());
 
-                    const data = await this.apiFetch(`/api/requirements/${this.activeRequirement.id}/chat`, {
+                    const res = await this.apiFetch(`/api/requirements/${this.activeRequirement.id}/chat`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ message: msg })
                     });
                     this.reqIsTyping = false;
-                    if (data) {
+                    if (res && res.ok) {
+                        const data = await res.json();
                         this.reqMessages = data.messages;
                         this.$nextTick(() => this.scrollChat());
+                    } else if (res) {
+                        const err = await res.json().catch(() => ({}));
+                        this.showNotification(err.error || 'Error al contactar la IA', 'error');
+                        this.reqMessages.pop(); // remove optimistic user message
                     }
                 },
 
@@ -2292,22 +2338,26 @@
                 async importRequirementTasks() {
                     if (!this.activeRequirement) return;
                     if (!confirm('¿Importar las tareas generadas por IA al plan de planificación? Se agregarán al final de tu lista actual.')) return;
-                    const data = await this.apiFetch(`/api/requirements/${this.activeRequirement.id}/import-tasks`, {
+                    const res = await this.apiFetch(`/api/requirements/${this.activeRequirement.id}/import-tasks`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({})
                     });
-                    if (data) {
+                    if (res && res.ok) {
+                        const data = await res.json();
                         this.showNotification(`✅ ${data.created} tareas importadas al plan`, 'success');
                         await this.loadTasks();
                         await this.loadStats();
+                    } else if (res) {
+                        const err = await res.json().catch(() => ({}));
+                        this.showNotification(err.error || 'Error importando tareas', 'error');
                     }
                 },
 
                 async deleteRequirement(id) {
                     if (!confirm('¿Eliminar esta toma de requerimiento?')) return;
-                    const data = await this.apiFetch(`/api/requirements/${id}`, { method: 'DELETE' });
-                    if (data) {
+                    const res = await this.apiFetch(`/api/requirements/${id}`, { method: 'DELETE' });
+                    if (res && res.ok) {
                         this.requirements = this.requirements.filter(r => r.id !== id);
                         if (this.activeRequirement?.id === id) this.activeRequirement = null;
                         this.showNotification('Requerimiento eliminado', 'success');
