@@ -1357,9 +1357,6 @@ function buildStructuredPdf(res, doc, theme = 'dark') {
     const bg = () => pdf.save().rect(0,0,PW,PH).fill(T.BG).restore();
     const accentTop = () => pdf.save().rect(0,0,PW,5).fill(T.ACCENT).restore();
 
-    // Ensure every auto-added page (from text overflow) also gets dark background
-    // Do NOT reset pdf.y here — PDFKit manages it internally during text wrapping
-    pdf.on('pageAdded', () => { bg(); accentTop(); });
 
     const footer = (pageNum, total) => {
         const savedY = pdf.y;
@@ -1396,7 +1393,7 @@ function buildStructuredPdf(res, doc, theme = 'dark') {
     };
 
     const bulletItem = (text, color = T.ACCENT) => {
-        checkPage(30);
+        checkPage(60);
         const y = pdf.y;
         pdf.save().circle(M+14, y+5, 2.5).fill(color).restore();
         pdf.fillColor(T.TEXT).font('Helvetica').fontSize(9.5)
@@ -1405,7 +1402,7 @@ function buildStructuredPdf(res, doc, theme = 'dark') {
     };
 
     const stepBox = (title, desc, color, isLast = false) => {
-        checkPage(50);
+        checkPage(80);
         const y = pdf.y;
         pdf.save().roundedRect(M+4, y-4, CW-8, 36, 5).fill(T.CARD).restore();
         pdf.save().rect(M+4, y-4, 3, 36).fill(color).restore();
@@ -1461,7 +1458,7 @@ function buildStructuredPdf(res, doc, theme = 'dark') {
     };
 
     const roadmapPhase = (phase, color) => {
-        checkPage(50);
+        checkPage(80);
         const y = pdf.y;
         // Dot
         pdf.save().circle(M+12, y+5, 5).fill(color).restore();
