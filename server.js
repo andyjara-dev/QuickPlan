@@ -185,6 +185,9 @@ db.serialize(() => {
         )
     `, () => {
         console.log('✅ Tabla requirements lista');
+        db.run(`ALTER TABLE requirements ADD COLUMN doc_content TEXT DEFAULT NULL`, (err) => {
+            if (err && !err.message.includes('duplicate column name')) console.error('Migration doc_content:', err);
+        });
     });
 });
 
@@ -1016,6 +1019,42 @@ async function generateContextSummary(provider, messages, apiKey) {
     return callAI(provider, msgs, '', apiKey);
 }
 
+// ── Prompt síntesis de documento ─────────────────────────────────────────────
+
+const DOC_GENERATION_PROMPT = `Basado en la conversación de levantamiento de requerimientos, genera un documento técnico de requerimientos estructurado.
+Responde ÚNICAMENTE con un JSON válido, sin texto adicional, sin bloques markdown, con este esquema exacto:
+{
+  "title": "título del proyecto",
+  "subtitle": "subtítulo descriptivo (ej: Documento de requerimiento técnico)",
+  "company": "empresa o cliente",
+  "responsible": "responsable técnico identificado",
+  "version": "1.0",
+  "sections": [
+    { "type": "context",       "title": "Antecedentes",               "content": "párrafo descriptivo del contexto y antecedentes" },
+    { "type": "current",       "title": "Situación Actual (As-Is)",   "content": "descripción general", "steps": [{"title":"Nombre paso","desc":"descripción"}] },
+    { "type": "problem",       "title": "Problemática y Motivación",  "items": ["problema 1","problema 2"] },
+    { "type": "target",        "title": "Modelo Objetivo (To-Be)",    "content": "descripción general", "steps": [{"title":"Nombre paso","desc":"descripción"}] },
+    { "type": "functional",    "title": "Requerimientos Funcionales", "items": [{"id":"RF-01","text":"descripción"}] },
+    { "type": "nonfunctional", "title": "Requerimientos No Funcionales", "items": [{"id":"RNF-01","text":"descripción"}] },
+    { "type": "risks",         "title": "Riesgos Identificados",      "items": [{"level":"Alto","text":"riesgo","mitigation":"mitigación"}] },
+    { "type": "roadmap",       "title": "Roadmap Estimado",           "phases": [{"name":"Fase 1","duration":"Semanas 1-3","title":"nombre fase","items":"tareas separadas por punto medio"}] },
+    { "type": "acceptance",    "title": "Criterios de Aceptación",    "items": ["criterio 1"] }
+  ],
+  "estimation": "texto breve con estimación de esfuerzo, equipo y plazo total"
+}
+Incluye solo las secciones para las que hay información suficiente en la conversación. El campo steps en current/target puede omitirse si no aplica. Sé preciso y profesional.`;
+
+async function generateDocContent(provider, messages, contextSummary, apiKey) {
+    const msgsWithPrompt = [
+        ...messages.filter(m => m.role !== 'system'),
+        { role: 'user', content: DOC_GENERATION_PROMPT }
+    ];
+    const raw = await callAI(provider, msgsWithPrompt, contextSummary, apiKey);
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error('La IA no devolvió JSON válido');
+    return JSON.parse(match[0]);
+}
+
 // ── Paleta del documento ──────────────────────────────────────────────────────
 const PDF_THEME = {
     BG:       '#0d1117',
@@ -1043,6 +1082,89 @@ function parseMsgParts(content) {
     }
     if (last < content.length) parts.push({ type: 'text', content: content.slice(last) });
     return parts.length ? parts : [{ type: 'text', content }];
+}
+
+function buildStructuredDocx(doc) {
+    const T = PDF_THEME;
+    const date = new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
+    const children = [];
+    const p = (text, opts = {}) => new Paragraph({ children: [new TextRun({ text: text || '', ...opts })], ...opts._par });
+    const blank = () => new Paragraph({ text: '' });
+    const accent = c => c.replace('#', '');
+
+    // Cover
+    children.push(new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Planning by andyjara.dev', bold: true, color: accent(T.ACCENT), size: 24 })] }));
+    children.push(new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: doc.title || 'Documento de Requerimientos', bold: true, color: 'E2E8F0', size: 40 })] }));
+    if (doc.subtitle) children.push(new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: doc.subtitle, color: '94A3B8', size: 20 })] }));
+    children.push(blank());
+
+    const meta = [['Empresa', doc.company], ['Responsable', doc.responsible], ['Versión', doc.version || '1.0'], ['Fecha', date]].filter(([,v]) => v);
+    if (meta.length) {
+        children.push(new Table({
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            rows: [new TableRow({ children: meta.map(([l, v]) => new TableCell({
+                shading: { type: 'clear', color: 'auto', fill: accent(T.CARD) },
+                children: [
+                    new Paragraph({ children: [new TextRun({ text: l.toUpperCase(), color: '64748B', size: 16 })] }),
+                    new Paragraph({ children: [new TextRun({ text: v, bold: true, color: 'E2E8F0', size: 20 })] })
+                ]
+            })) })]
+        }));
+        children.push(blank());
+    }
+
+    let sNum = 1;
+    for (const sec of (doc.sections || [])) {
+        children.push(new Paragraph({ heading: HeadingLevel.HEADING_2, children: [new TextRun({ text: `${sNum++}. ${sec.title.toUpperCase()}`, bold: true, color: accent(T.ACCENT) })] }));
+
+        if (sec.content) children.push(new Paragraph({ children: [new TextRun({ text: sec.content, color: 'E2E8F0', size: 20 })] }));
+
+        if (sec.steps) {
+            for (const step of sec.steps) {
+                children.push(new Paragraph({ children: [new TextRun({ text: '▶  ' + step.title, bold: true, color: accent(T.ACCENT), size: 20 })] }));
+                children.push(new Paragraph({ indent: { left: 300 }, children: [new TextRun({ text: step.desc, color: '94A3B8', size: 18 })] }));
+            }
+        }
+
+        if (sec.items && sec.type === 'functional' || sec.type === 'nonfunctional') {
+            const items = sec.items || [];
+            for (const item of items) {
+                const id = item.id || '';
+                const text = item.text || item;
+                children.push(new Paragraph({ children: [new TextRun({ text: `${id}  `, bold: true, color: accent(T.ACCENT), size: 18 }), new TextRun({ text: text, color: 'E2E8F0', size: 18 })] }));
+            }
+        } else if (Array.isArray(sec.items)) {
+            for (const item of sec.items) {
+                if (typeof item === 'string') {
+                    children.push(new Paragraph({ bullet: { level: 0 }, children: [new TextRun({ text: item, color: 'E2E8F0', size: 19 })] }));
+                } else if (item.level) {
+                    const lvlColor = item.level === 'Alto' ? 'EF4444' : item.level === 'Medio' ? 'F59E0B' : '10B981';
+                    children.push(new Paragraph({ children: [new TextRun({ text: `[${item.level}]  `, bold: true, color: lvlColor, size: 18 }), new TextRun({ text: item.text, bold: true, color: 'E2E8F0', size: 18 })] }));
+                    if (item.mitigation) children.push(new Paragraph({ indent: { left: 300 }, children: [new TextRun({ text: 'Mitigación: ' + item.mitigation, color: '94A3B8', size: 17, italics: true })] }));
+                }
+            }
+        }
+
+        if (sec.phases) {
+            for (const ph of sec.phases) {
+                children.push(new Paragraph({ children: [new TextRun({ text: `${ph.name} · ${ph.duration}`, bold: true, color: accent(T.ACCENT), size: 18 })] }));
+                children.push(new Paragraph({ children: [new TextRun({ text: ph.title, bold: true, color: 'E2E8F0', size: 19 })] }));
+                if (ph.items) children.push(new Paragraph({ indent: { left: 300 }, children: [new TextRun({ text: ph.items, color: '94A3B8', size: 17 })] }));
+            }
+        }
+
+        children.push(blank());
+    }
+
+    if (doc.estimation) {
+        children.push(new Paragraph({ heading: HeadingLevel.HEADING_2, children: [new TextRun({ text: 'ESTIMACIÓN', bold: true, color: accent(T.ACCENT) })] }));
+        children.push(new Paragraph({ children: [new TextRun({ text: doc.estimation, color: 'E2E8F0', size: 20 })] }));
+        children.push(blank());
+    }
+
+    children.push(new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: `Generado por Planning by andyjara.dev · ${date}`, color: '64748B', size: 16 })] }));
+
+    return new Document({ sections: [{ properties: {}, children }] });
 }
 
 function buildDocxDocument(title, description, messages, userName, diagrams = []) {
@@ -1131,6 +1253,253 @@ function buildDocxDocument(title, description, messages, userName, diagrams = []
     }));
 
     return new Document({ sections: [{ properties: {}, children }] });
+}
+
+function buildStructuredPdf(res, doc) {
+    const T = PDF_THEME;
+    const PW = 595.28, PH = 841.89, M = 48, CW = PW - M * 2;
+    const date = new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
+
+    const pdf = new PDFDocument({ margin: M, size: 'A4', autoFirstPage: false, bufferPages: true,
+        info: { Title: doc.title, Author: doc.responsible || '', Creator: 'Planning by andyjara.dev' } });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${(doc.title||'requerimiento').replace(/[^a-z0-9]/gi,'_')}.pdf"`);
+    pdf.pipe(res);
+
+    const bg = () => pdf.save().rect(0,0,PW,PH).fill(T.BG).restore();
+    const accentTop = () => pdf.save().rect(0,0,PW,5).fill(T.ACCENT).restore();
+    const footer = (pageNum, total) => {
+        pdf.save().rect(0,PH-26,PW,26).fill(T.CARD).restore();
+        pdf.save().rect(0,PH-2,PW,2).fill(T.ACCENT).restore();
+        pdf.fillColor(T.FAINT).font('Helvetica').fontSize(7.5)
+            .text('Planning by andyjara.dev', 0, PH-18, { align: 'center', width: PW });
+        if (pageNum > 0) pdf.text(`${pageNum}/${total}`, PW-M-10, PH-18, { align: 'right', width: 30 });
+    };
+
+    const newPage = () => { pdf.addPage(); bg(); accentTop(); pdf.y = M + 14; };
+
+    const checkPage = (needed = 80) => { if (pdf.y > PH - needed) newPage(); };
+
+    const sectionHeader = (text, num) => {
+        checkPage(60);
+        const y = pdf.y;
+        pdf.save().rect(M-8, y-4, CW+16, 26).fill(T.ELEVATED).restore();
+        pdf.save().rect(M-8, y-4, 3, 26).fill(T.ACCENT).restore();
+        pdf.fillColor(T.ACCENT).font('Helvetica-Bold').fontSize(9.5)
+            .text(`${num}.  ${text.toUpperCase()}`, M+6, y+4, { width: CW });
+        pdf.moveDown(0.9);
+    };
+
+    const bodyText = (text, indent = 0) => {
+        checkPage(40);
+        pdf.fillColor(T.TEXT).font('Helvetica').fontSize(9.5)
+            .text(text, M+8+indent, pdf.y, { width: CW-16-indent, lineGap: 2.5 });
+        pdf.moveDown(0.4);
+    };
+
+    const bulletItem = (text, color = T.ACCENT) => {
+        checkPage(30);
+        const y = pdf.y;
+        pdf.save().circle(M+14, y+5, 2.5).fill(color).restore();
+        pdf.fillColor(T.TEXT).font('Helvetica').fontSize(9.5)
+            .text(text, M+22, y, { width: CW-30, lineGap: 2 });
+        pdf.moveDown(0.35);
+    };
+
+    const stepBox = (title, desc, color) => {
+        checkPage(50);
+        const y = pdf.y;
+        pdf.save().roundedRect(M+4, y-4, CW-8, 36, 5).fill(T.CARD).restore();
+        pdf.save().rect(M+4, y-4, 3, 36).fill(color).restore();
+        pdf.fillColor(color).font('Helvetica-Bold').fontSize(9)
+            .text(title, M+14, y, { width: CW-24 });
+        pdf.fillColor(T.MUTED).font('Helvetica').fontSize(8.5)
+            .text(desc, M+14, pdf.y+1, { width: CW-24, lineGap: 1.5 });
+        pdf.moveDown(0.5);
+        // Arrow
+        checkPage(20);
+        pdf.fillColor(T.FAINT).font('Helvetica').fontSize(14)
+            .text('↓', 0, pdf.y, { align: 'center', width: PW });
+        pdf.moveDown(0.3);
+    };
+
+    const reqCard = (id, text) => {
+        checkPage(35);
+        const y = pdf.y;
+        pdf.save().roundedRect(M+4, y-3, CW-8, 30, 5).fill(T.CARD).restore();
+        pdf.save().rect(M+4, y-3, 3, 30).fill(T.ACCENT).restore();
+        pdf.fillColor(T.ACCENT).font('Helvetica-Bold').fontSize(8)
+            .text(id, M+14, y, { width: 50 });
+        pdf.fillColor(T.TEXT).font('Helvetica').fontSize(9)
+            .text(text, M+68, y, { width: CW-80, lineGap: 1.5 });
+        pdf.moveDown(0.6);
+    };
+
+    const riskRow = (level, text, mitigation) => {
+        checkPage(40);
+        const colors = { Alto: T.DANGER, Medio: T.WARNING, Bajo: T.SUCCESS };
+        const col = colors[level] || T.MUTED;
+        const y = pdf.y;
+        pdf.save().roundedRect(M+4, y-3, 44, 18, 4).fill(col).restore();
+        pdf.fillColor('#fff').font('Helvetica-Bold').fontSize(7.5)
+            .text(level, M+4, y+3, { width: 44, align: 'center' });
+        pdf.fillColor(T.TEXT).font('Helvetica-Bold').fontSize(9)
+            .text(text, M+56, y, { width: CW-60, lineGap: 1.5 });
+        if (mitigation) {
+            pdf.fillColor(T.MUTED).font('Helvetica').fontSize(8.5)
+                .text('Mitigación: ' + mitigation, M+56, pdf.y+1, { width: CW-60, lineGap: 1.5 });
+        }
+        pdf.moveDown(0.6);
+        pdf.save().moveTo(M+4, pdf.y-2).lineTo(PW-M-4, pdf.y-2)
+            .strokeColor(T.BORDER).lineWidth(0.3).stroke().restore();
+        pdf.moveDown(0.2);
+    };
+
+    const roadmapPhase = (phase, color) => {
+        checkPage(50);
+        const y = pdf.y;
+        // Dot
+        pdf.save().circle(M+12, y+5, 5).fill(color).restore();
+        // Vertical line (will be drawn after)
+        pdf.fillColor(T.FAINT).font('Helvetica-Bold').fontSize(7.5)
+            .text((phase.name || '') + (phase.duration ? ' · ' + phase.duration : ''), M+26, y, { width: CW-30 });
+        pdf.fillColor(T.TEXT).font('Helvetica-Bold').fontSize(9.5)
+            .text(phase.title || '', M+26, pdf.y+1, { width: CW-30 });
+        if (phase.items) {
+            pdf.fillColor(T.MUTED).font('Helvetica').fontSize(8.5)
+                .text(phase.items, M+26, pdf.y+1, { width: CW-30, lineGap: 1.5 });
+        }
+        pdf.moveDown(0.8);
+    };
+
+    const checkItem = (text) => {
+        checkPage(25);
+        const y = pdf.y;
+        pdf.fillColor(T.SUCCESS).font('Helvetica-Bold').fontSize(10).text('✓', M+8, y, { width: 16 });
+        pdf.fillColor(T.TEXT).font('Helvetica').fontSize(9.5)
+            .text(text, M+24, y, { width: CW-28, lineGap: 2 });
+        pdf.moveDown(0.35);
+    };
+
+    // ── Portada ───────────────────────────────────────────────────────────────
+    pdf.addPage(); bg();
+    pdf.save().rect(0,0,PW,6).fill(T.ACCENT).restore();
+    pdf.save().rect(0,0,PW,210).fill(T.CARD).restore();
+    pdf.save().moveTo(0,210).lineTo(PW,158).lineTo(PW,210).fill(T.BG).restore();
+
+    pdf.fillColor(T.ACCENT).font('Helvetica-Bold').fontSize(11)
+        .text('Planning by andyjara.dev', M, 54, { align: 'center', width: CW });
+    const cx = PW/2;
+    pdf.save().moveTo(cx-50,74).lineTo(cx+50,74).strokeColor(T.ACCENT).lineWidth(1.5).stroke().restore();
+
+    pdf.fillColor(T.TEXT).font('Helvetica-Bold').fontSize(26)
+        .text(doc.title || 'Documento de Requerimientos', M, 88, { align: 'center', width: CW, lineGap: 4 });
+    if (doc.subtitle) pdf.fillColor(T.MUTED).font('Helvetica').fontSize(10)
+        .text(doc.subtitle, M+40, pdf.y+8, { align: 'center', width: CW-80 });
+
+    // Meta cards
+    const metaItems = [
+        ['EMPRESA', doc.company], ['RESPONSABLE', doc.responsible],
+        ['VERSIÓN', doc.version || '1.0'], ['FECHA', date]
+    ].filter(([,v]) => v);
+
+    const cardW = Math.min(180, (CW-20) / 2);
+    const cardH = 68, cardY = PH*0.6;
+    const totalW = metaItems.length <= 2 ? metaItems.length * (cardW+10) : 2*(cardW+10);
+    let cx2 = (PW-totalW)/2;
+    for (let i = 0; i < metaItems.length; i++) {
+        const x = cx2 + (i%2) * (cardW+10);
+        const y2 = cardY + Math.floor(i/2) * (cardH+10);
+        pdf.save().roundedRect(x, y2, cardW, cardH, 7).fill(T.CARD).restore();
+        pdf.save().rect(x, y2, 3, cardH).fill(T.ACCENT).restore();
+        pdf.fillColor(T.FAINT).font('Helvetica').fontSize(7.5).text(metaItems[i][0], x+10, y2+10, { width: cardW-14 });
+        pdf.fillColor(T.TEXT).font('Helvetica-Bold').fontSize(11).text(metaItems[i][1], x+10, y2+23, { width: cardW-14 });
+    }
+
+    pdf.save().rect(0,PH-26,PW,26).fill(T.CARD).restore();
+    pdf.save().rect(0,PH-2,PW,2).fill(T.ACCENT).restore();
+    pdf.fillColor(T.FAINT).font('Helvetica').fontSize(7.5)
+        .text('Planning by andyjara.dev · Documento de Requerimientos', 0, PH-18, { align: 'center', width: PW });
+
+    // ── Contenido ─────────────────────────────────────────────────────────────
+    newPage();
+
+    const STEP_COLORS = ['#AFA9EC','#5DCAA5','#D85A30','#85B7EB','#B4B2A9'];
+    const PHASE_COLORS = ['#AFA9EC','#5DCAA5','#378ADD','#D85A30','#888780'];
+
+    let sNum = 1;
+    for (const sec of (doc.sections || [])) {
+        sectionHeader(sec.title, sNum++);
+
+        switch (sec.type) {
+            case 'context':
+                if (sec.content) bodyText(sec.content);
+                break;
+
+            case 'current':
+            case 'target':
+                if (sec.content) { bodyText(sec.content); pdf.moveDown(0.4); }
+                if (sec.steps) {
+                    sec.steps.forEach((s, i) => stepBox(s.title, s.desc, STEP_COLORS[i % STEP_COLORS.length]));
+                    // remove last arrow
+                    pdf.moveDown(-0.3);
+                }
+                break;
+
+            case 'problem':
+            case 'acceptance':
+                (sec.items || []).forEach(item => {
+                    if (sec.type === 'acceptance') checkItem(item);
+                    else bulletItem(item);
+                });
+                break;
+
+            case 'functional':
+            case 'nonfunctional':
+                (sec.items || []).forEach(item => reqCard(item.id || '', item.text || item));
+                break;
+
+            case 'risks':
+                (sec.items || []).forEach(item => riskRow(item.level, item.text, item.mitigation));
+                break;
+
+            case 'roadmap':
+                (sec.phases || []).forEach((ph, i) => roadmapPhase(ph, PHASE_COLORS[i % PHASE_COLORS.length]));
+                break;
+
+            default:
+                if (sec.content) bodyText(sec.content);
+                (sec.items || []).forEach(item => bulletItem(typeof item === 'string' ? item : item.text || ''));
+        }
+
+        pdf.moveDown(0.6);
+    }
+
+    if (doc.estimation) {
+        sectionHeader('Estimación de Esfuerzo', sNum);
+        checkPage(50);
+        const eY = pdf.y;
+        pdf.save().roundedRect(M+4, eY-6, CW-8, 44, 6).fill(T.CARD).restore();
+        pdf.save().rect(M+4, eY-6, 3, 44).fill(T.WARNING).restore();
+        pdf.fillColor(T.TEXT).font('Helvetica').fontSize(9.5)
+            .text(doc.estimation, M+14, eY, { width: CW-24, lineGap: 3 });
+        pdf.moveDown(1);
+    }
+
+    pdf.moveDown(0.5);
+    pdf.save().moveTo(M, pdf.y).lineTo(PW-M, pdf.y).strokeColor(T.ACCENT).lineWidth(0.5).stroke().restore();
+    pdf.moveDown(0.5);
+    pdf.fillColor(T.FAINT).font('Helvetica').fontSize(7.5)
+        .text(`Generado por Planning by andyjara.dev · ${date}`, { align: 'center', width: CW });
+
+    // Page numbers
+    const range = pdf.bufferedPageRange();
+    for (let i = 0; i < range.count; i++) {
+        pdf.switchToPage(range.start + i);
+        footer(i, range.count - 1);
+    }
+
+    pdf.end();
 }
 
 function buildPdfDocument(res, title, description, messages, userName, diagrams = []) {
@@ -1443,25 +1812,56 @@ app.post('/api/requirements/:id/chat', requireAuth, async (req, res) => {
     });
 });
 
+app.post('/api/requirements/:id/generate-doc', requireAuth, async (req, res) => {
+    db.get('SELECT * FROM requirements WHERE id = ? AND user_id = ?', [req.params.id, req.user.id], async (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!row) return res.status(404).json({ error: 'No encontrado' });
+        const messages = JSON.parse(row.messages || '[]');
+        if (!messages.length) return res.status(400).json({ error: 'No hay conversación para sintetizar' });
+        try {
+            const settingKey = row.ai_provider === 'gemini' ? 'gemini_api_key' : 'anthropic_api_key';
+            const apiKey = await getUserSetting(req.user.id, settingKey);
+            const docJson = await generateDocContent(row.ai_provider, messages, row.context_summary, apiKey);
+            db.run('UPDATE requirements SET doc_content=?, updated_at=CURRENT_TIMESTAMP WHERE id=?',
+                [JSON.stringify(docJson), row.id]);
+            res.json(docJson);
+        } catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    });
+});
+
 app.post('/api/requirements/:id/export', requireAuth, async (req, res) => {
-    const { format } = req.body; // 'docx' | 'pdf'
+    const { format, regenerate } = req.body;
     db.get('SELECT * FROM requirements WHERE id = ? AND user_id = ?', [req.params.id, req.user.id], async (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
         if (!row) return res.status(404).json({ error: 'No encontrado' });
 
         const messages = JSON.parse(row.messages || '[]');
-        const userName = req.user.name;
+        let docJson = (row.doc_content && !regenerate) ? JSON.parse(row.doc_content) : null;
 
-        const diagrams = req.body.diagrams || [];
+        if (!docJson && messages.length) {
+            try {
+                const settingKey = row.ai_provider === 'gemini' ? 'gemini_api_key' : 'anthropic_api_key';
+                const apiKey = await getUserSetting(req.user.id, settingKey);
+                docJson = await generateDocContent(row.ai_provider, messages, row.context_summary, apiKey);
+                db.run('UPDATE requirements SET doc_content=?, updated_at=CURRENT_TIMESTAMP WHERE id=?',
+                    [JSON.stringify(docJson), row.id]);
+            } catch (e) {
+                return res.status(500).json({ error: 'Error generando documento: ' + e.message });
+            }
+        }
+
+        if (!docJson) return res.status(400).json({ error: 'No hay conversación para exportar' });
 
         if (format === 'pdf') {
-            buildPdfDocument(res, row.title, row.description, messages, userName, diagrams);
+            buildStructuredPdf(res, docJson);
         } else {
             try {
-                const doc = buildDocxDocument(row.title, row.description, messages, userName, diagrams);
-                const buffer = await Packer.toBuffer(doc);
+                const wordDoc = buildStructuredDocx(docJson);
+                const buffer = await Packer.toBuffer(wordDoc);
                 res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-                res.setHeader('Content-Disposition', `attachment; filename="${row.title.replace(/[^a-z0-9]/gi, '_')}.docx"`);
+                res.setHeader('Content-Disposition', `attachment; filename="${(docJson.title||row.title).replace(/[^a-z0-9]/gi,'_')}.docx"`);
                 res.send(buffer);
             } catch (e) {
                 res.status(500).json({ error: e.message });

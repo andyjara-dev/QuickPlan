@@ -1065,12 +1065,21 @@
 
                 <!-- Chat de requerimiento -->
                 <div v-else>
-                    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
                         <button class="btn btn-secondary btn-small" @click="activeRequirement=null">← Volver</button>
-                        <h2 style="margin:0;font-size:1.1rem;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ activeRequirement.title }}</h2>
-                        <button class="btn btn-secondary btn-small" @click="exportRequirement(activeRequirement.id,'docx')">⬇ Word</button>
-                        <button class="btn btn-secondary btn-small" @click="exportRequirement(activeRequirement.id,'pdf')">⬇ PDF</button>
-                        <button class="btn btn-primary btn-small" @click="importRequirementTasks">📋 Importar tareas</button>
+                        <h2 style="margin:0;font-size:1.05rem;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:120px;">{{ activeRequirement.title }}</h2>
+                        <template v-if="activeRequirement.doc_content">
+                            <span style="font-size:0.72rem;color:var(--success);font-weight:600;">✓ Doc generado</span>
+                            <button class="btn btn-secondary btn-small" @click="exportRequirement(activeRequirement.id,'docx')" :disabled="reqExporting">⬇ Word</button>
+                            <button class="btn btn-secondary btn-small" @click="exportRequirement(activeRequirement.id,'pdf')" :disabled="reqExporting">⬇ PDF</button>
+                            <button class="btn btn-secondary btn-small" @click="generateDoc(true)" :disabled="reqGenerating" title="Regenerar documento desde la conversación">↺ Regenerar</button>
+                        </template>
+                        <template v-else>
+                            <button class="btn btn-primary btn-small" @click="generateDoc(false)" :disabled="reqGenerating || !reqMessages.length">
+                                {{ reqGenerating ? '⏳ Generando…' : '✨ Generar documento' }}
+                            </button>
+                        </template>
+                        <button class="btn btn-info btn-small" @click="importRequirementTasks" :disabled="reqGenerating">📋 Importar tareas</button>
                     </div>
 
                     <div class="req-chat-layout">
@@ -1552,6 +1561,8 @@
                     reqInput: '',
                     reqIsTyping: false,
                     reqPendingImage: null,
+                    reqGenerating: false,
+                    reqExporting: false,
                     showNewReqDialog: false,
                     newReqTitle: '',
                     newReqProvider: 'claude'
@@ -2469,13 +2480,33 @@
                     return diagrams;
                 },
 
+                async generateDoc(regenerate = false) {
+                    if (!this.activeRequirement || this.reqGenerating) return;
+                    this.reqGenerating = true;
+                    const res = await this.apiFetch(`/api/requirements/${this.activeRequirement.id}/generate-doc`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ regenerate })
+                    });
+                    this.reqGenerating = false;
+                    if (res && res.ok) {
+                        const doc = await res.json();
+                        this.activeRequirement.doc_content = doc;
+                        this.showNotification('✅ Documento generado — ya puedes exportar Word o PDF', 'success');
+                    } else if (res) {
+                        const err = await res.json().catch(() => ({}));
+                        this.showNotification(err.error || 'Error generando documento', 'error');
+                    }
+                },
+
                 async exportRequirement(id, format) {
+                    if (this.reqExporting) return;
+                    this.reqExporting = true;
                     try {
-                        const diagrams = await this.captureDiagrams();
                         const resp = await fetch(`/api/requirements/${id}/export`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ format, diagrams })
+                            body: JSON.stringify({ format })
                         });
                         if (!resp.ok) { this.showNotification('Error al exportar', 'error'); return; }
                         const blob = await resp.blob();
@@ -2490,6 +2521,8 @@
                         this.showNotification(`Exportado como ${format.toUpperCase()}`, 'success');
                     } catch (e) {
                         this.showNotification('Error al exportar: ' + e.message, 'error');
+                    } finally {
+                        this.reqExporting = false;
                     }
                 },
 
