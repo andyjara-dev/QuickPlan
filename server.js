@@ -1276,6 +1276,10 @@ function buildStructuredPdf(res, doc) {
 
     const bg = () => pdf.save().rect(0,0,PW,PH).fill(T.BG).restore();
     const accentTop = () => pdf.save().rect(0,0,PW,5).fill(T.ACCENT).restore();
+
+    // Ensure every auto-added page (from text overflow) also gets dark background
+    pdf.on('pageAdded', () => { bg(); accentTop(); pdf.y = M + 14; });
+
     const footer = (pageNum, total) => {
         pdf.save().rect(0,PH-26,PW,26).fill(T.CARD).restore();
         pdf.save().rect(0,PH-2,PW,2).fill(T.ACCENT).restore();
@@ -1314,7 +1318,7 @@ function buildStructuredPdf(res, doc) {
         pdf.moveDown(0.35);
     };
 
-    const stepBox = (title, desc, color) => {
+    const stepBox = (title, desc, color, isLast = false) => {
         checkPage(50);
         const y = pdf.y;
         pdf.save().roundedRect(M+4, y-4, CW-8, 36, 5).fill(T.CARD).restore();
@@ -1324,11 +1328,12 @@ function buildStructuredPdf(res, doc) {
         pdf.fillColor(T.MUTED).font('Helvetica').fontSize(8.5)
             .text(desc, M+14, pdf.y+1, { width: CW-24, lineGap: 1.5 });
         pdf.moveDown(0.5);
-        // Arrow
-        checkPage(20);
-        pdf.fillColor(T.FAINT).font('Helvetica').fontSize(14)
-            .text('↓', 0, pdf.y, { align: 'center', width: PW });
-        pdf.moveDown(0.3);
+        if (!isLast) {
+            checkPage(20);
+            pdf.fillColor(T.FAINT).font('Helvetica').fontSize(14)
+                .text('↓', 0, pdf.y, { align: 'center', width: PW });
+            pdf.moveDown(0.3);
+        }
     };
 
     const reqCard = (id, text) => {
@@ -1395,13 +1400,8 @@ function buildStructuredPdf(res, doc) {
     pdf.save().rect(0,0,PW,210).fill(T.CARD).restore();
     pdf.save().moveTo(0,210).lineTo(PW,158).lineTo(PW,210).fill(T.BG).restore();
 
-    pdf.fillColor(T.ACCENT).font('Helvetica-Bold').fontSize(11)
-        .text('Planning by andyjara.dev', M, 54, { align: 'center', width: CW });
-    const cx = PW/2;
-    pdf.save().moveTo(cx-50,74).lineTo(cx+50,74).strokeColor(T.ACCENT).lineWidth(1.5).stroke().restore();
-
     pdf.fillColor(T.TEXT).font('Helvetica-Bold').fontSize(26)
-        .text(doc.title || 'Documento de Requerimientos', M, 88, { align: 'center', width: CW, lineGap: 4 });
+        .text(doc.title || 'Documento de Requerimientos', M, 70, { align: 'center', width: CW, lineGap: 4 });
     if (doc.subtitle) pdf.fillColor(T.MUTED).font('Helvetica').fontSize(10)
         .text(doc.subtitle, M+40, pdf.y+8, { align: 'center', width: CW-80 });
 
@@ -1424,11 +1424,6 @@ function buildStructuredPdf(res, doc) {
         pdf.fillColor(T.TEXT).font('Helvetica-Bold').fontSize(11).text(metaItems[i][1], x+10, y2+23, { width: cardW-14 });
     }
 
-    pdf.save().rect(0,PH-26,PW,26).fill(T.CARD).restore();
-    pdf.save().rect(0,PH-2,PW,2).fill(T.ACCENT).restore();
-    pdf.fillColor(T.FAINT).font('Helvetica').fontSize(7.5)
-        .text('Planning by andyjara.dev · Documento de Requerimientos', 0, PH-18, { align: 'center', width: PW });
-
     // ── Contenido ─────────────────────────────────────────────────────────────
     newPage();
 
@@ -1448,9 +1443,8 @@ function buildStructuredPdf(res, doc) {
             case 'target':
                 if (sec.content) { bodyText(sec.content); pdf.moveDown(0.4); }
                 if (sec.steps) {
-                    sec.steps.forEach((s, i) => stepBox(s.title, s.desc, STEP_COLORS[i % STEP_COLORS.length]));
-                    // remove last arrow
-                    pdf.moveDown(-0.3);
+                    const steps = sec.steps;
+                    steps.forEach((s, i) => stepBox(s.title, s.desc, STEP_COLORS[i % STEP_COLORS.length], i === steps.length - 1));
                 }
                 break;
 
@@ -1494,6 +1488,7 @@ function buildStructuredPdf(res, doc) {
         pdf.moveDown(1);
     }
 
+    checkPage(40);
     pdf.moveDown(0.5);
     pdf.save().moveTo(M, pdf.y).lineTo(PW-M, pdf.y).strokeColor(T.ACCENT).lineWidth(0.5).stroke().restore();
     pdf.moveDown(0.5);
