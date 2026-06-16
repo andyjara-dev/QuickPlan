@@ -13,7 +13,7 @@ const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const SQLiteStore = require('connect-sqlite3')(session);
 const Anthropic = require('@anthropic-ai/sdk');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-const { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, BorderStyle, AlignmentType } = require('docx');
+const { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, BorderStyle, AlignmentType, Footer } = require('docx');
 const PDFDocument = require('pdfkit');
 const crypto = require('crypto');
 
@@ -1241,17 +1241,22 @@ function buildStructuredDocx(doc) {
         children.push(blank());
     }
 
-    children.push(new Paragraph({
-        alignment: AlignmentType.CENTER,
-        spacing: { before: 800 },
-        children: [run(`Planning by andyjara.dev  -  ${date}`, { size: 16, color: MUTED, italics: true })]
-    }));
-
     return new Document({
         styles: {
             default: { document: { run: { font: FONT } } }
         },
-        sections: [{ properties: {}, children }]
+        sections: [{
+            properties: {},
+            children,
+            footers: {
+                default: new Footer({
+                    children: [new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        children: [new TextRun({ text: `Generado por Planning by andyjara.dev  ·  ${date}`, size: 16, color: MUTED, italics: true })]
+                    })]
+                })
+            }
+        }]
     });
 }
 
