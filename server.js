@@ -47,7 +47,7 @@ app.use(helmet({
 
 app.use(compression());
 app.use(cors());
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '25mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Sesiones
@@ -946,6 +946,34 @@ Responde siempre en español. Sé conciso pero completo. Haz máximo 3 preguntas
 const MAX_MESSAGES_BEFORE_SUMMARY = 10;
 const MESSAGES_TO_KEEP_AFTER_SUMMARY = 6;
 
+function toClaudeMsg(m) {
+    if (m.role === 'assistant') return { role: 'assistant', content: m.content || '' };
+    // user message — may have image
+    if (m.image) {
+        return {
+            role: 'user',
+            content: [
+                { type: 'image', source: { type: 'base64', media_type: m.image.mediaType, data: m.image.data } },
+                { type: 'text', text: m.content || 'Analiza esta imagen en el contexto del levantamiento de requerimientos.' }
+            ]
+        };
+    }
+    return { role: 'user', content: m.content || '' };
+}
+
+function toGeminiHistory(m) {
+    if (m.image) {
+        return {
+            role: 'user',
+            parts: [
+                { inlineData: { mimeType: m.image.mediaType, data: m.image.data } },
+                { text: m.content || 'Analiza esta imagen en el contexto del levantamiento de requerimientos.' }
+            ]
+        };
+    }
+    return { role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content || '' }] };
+}
+
 async function callAI(provider, messages, contextSummary, apiKey) {
     if (!apiKey) throw new Error(`No hay API key configurada para ${provider}. Configúrala en ⚙ Ajustes.`);
 
@@ -960,14 +988,15 @@ async function callAI(provider, messages, contextSummary, apiKey) {
     if (provider === 'gemini') {
         const genAI = new GoogleGenerativeAI(apiKey);
         const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        const last = historyToSend[historyToSend.length - 1];
         const chat = model.startChat({
             systemInstruction: systemWithSummary,
-            history: historyToSend.slice(0, -1).map(m => ({
-                role: m.role === 'assistant' ? 'model' : 'user',
-                parts: [{ text: m.content }]
-            }))
+            history: historyToSend.slice(0, -1).map(toGeminiHistory)
         });
-        const result = await chat.sendMessage(historyToSend[historyToSend.length - 1].content);
+        const lastParts = last.image
+            ? [{ inlineData: { mimeType: last.image.mediaType, data: last.image.data } }, { text: last.content || 'Analiza esta imagen.' }]
+            : last.content || '';
+        const result = await chat.sendMessage(lastParts);
         return result.response.text();
     } else {
         const anthropic = new Anthropic({ apiKey });
@@ -975,7 +1004,7 @@ async function callAI(provider, messages, contextSummary, apiKey) {
             model: 'claude-haiku-4-5-20251001',
             max_tokens: 1024,
             system: systemWithSummary,
-            messages: historyToSend.map(m => ({ role: m.role, content: m.content }))
+            messages: historyToSend.map(toClaudeMsg)
         });
         return response.content[0].text;
     }
@@ -1242,6 +1271,22 @@ function buildPdfDocument(res, title, description, messages, userName, diagrams 
             .text(roleName, M + 6, hY + 3, { width: CW - 10 });
         doc.moveDown(0.5);
 
+        // Embed user image if present
+        if (isUser && msg.image && msg.image.data) {
+            try {
+                if (doc.y > PH - 180) newPage();
+                const imgBuf = Buffer.from(msg.image.data, 'base64');
+                const imgW = Math.min(CW - 20, 320);
+                const imgX = M + (CW - imgW) / 2;
+                doc.save().roundedRect(M + 5, doc.y - 4, CW - 10, imgW * 0.65 + 16, 6).fill(T.ELEVATED).restore();
+                doc.image(imgBuf, imgX, doc.y, { width: imgW });
+                doc.moveDown(0.5);
+            } catch (e) {
+                doc.fillColor(T.FAINT).font('Helvetica').fontSize(8).text('[Imagen adjunta]', M + 10, doc.y);
+                doc.moveDown(0.3);
+            }
+        }
+
         const parts = parseMsgParts(msg.content);
         for (const part of parts) {
             if (part.type === 'text') {
@@ -1358,15 +1403,17 @@ app.delete('/api/requirements/:id', requireAuth, (req, res) => {
 });
 
 app.post('/api/requirements/:id/chat', requireAuth, async (req, res) => {
-    const { message } = req.body;
-    if (!message) return res.status(400).json({ error: 'message requerido' });
+    const { message, image } = req.body;
+    if (!message && !image) return res.status(400).json({ error: 'message o image requerido' });
 
     db.get('SELECT * FROM requirements WHERE id = ? AND user_id = ?', [req.params.id, req.user.id], async (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
         if (!row) return res.status(404).json({ error: 'No encontrado' });
 
         let messages = JSON.parse(row.messages || '[]');
-        messages.push({ role: 'user', content: message });
+        const userMsg = { role: 'user', content: message || '' };
+        if (image && image.data && image.mediaType) userMsg.image = { data: image.data, mediaType: image.mediaType };
+        messages.push(userMsg);
 
         try {
             const settingKey = row.ai_provider === 'gemini' ? 'gemini_api_key' : 'anthropic_api_key';
