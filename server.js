@@ -1069,7 +1069,7 @@ async function generateDocContent(provider, messages, contextSummary, apiKey) {
     }
 }
 
-// ── Paleta del documento ──────────────────────────────────────────────────────
+// ── Paletas del documento ─────────────────────────────────────────────────────
 const PDF_THEME = {
     BG:       '#0d1117',
     CARD:     '#141829',
@@ -1082,6 +1082,20 @@ const PDF_THEME = {
     MUTED:    '#94a3b8',
     FAINT:    '#64748b',
     BORDER:   '#1e293b',
+};
+
+const PDF_LIGHT_THEME = {
+    BG:       '#ffffff',
+    CARD:     '#f5f5f3',
+    ELEVATED: '#ebebea',
+    ACCENT:   '#0C447C',
+    SUCCESS:  '#1D9E75',
+    WARNING:  '#8B5E00',
+    DANGER:   '#9B2020',
+    TEXT:     '#1a1a1a',
+    MUTED:    '#555555',
+    FAINT:    '#888888',
+    BORDER:   '#e5e5e5',
 };
 
 function parseMsgParts(content) {
@@ -1269,8 +1283,8 @@ function buildDocxDocument(title, description, messages, userName, diagrams = []
     return new Document({ sections: [{ properties: {}, children }] });
 }
 
-function buildStructuredPdf(res, doc) {
-    const T = PDF_THEME;
+function buildStructuredPdf(res, doc, theme = 'dark') {
+    const T = theme === 'light' ? PDF_LIGHT_THEME : PDF_THEME;
     const PW = 595.28, PH = 841.89, M = 48, CW = PW - M * 2;
     const date = new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
 
@@ -1842,7 +1856,7 @@ app.post('/api/requirements/:id/generate-doc', requireAuth, async (req, res) => 
 });
 
 app.post('/api/requirements/:id/export', requireAuth, async (req, res) => {
-    const { format, regenerate } = req.body;
+    const { format, regenerate, theme } = req.body;
     db.get('SELECT * FROM requirements WHERE id = ? AND user_id = ?', [req.params.id, req.user.id], async (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
         if (!row) return res.status(404).json({ error: 'No encontrado' });
@@ -1865,7 +1879,7 @@ app.post('/api/requirements/:id/export', requireAuth, async (req, res) => {
         if (!docJson) return res.status(400).json({ error: 'No hay conversación para exportar' });
 
         if (format === 'pdf') {
-            buildStructuredPdf(res, docJson);
+            buildStructuredPdf(res, docJson, theme || 'dark');
         } else {
             try {
                 const wordDoc = buildStructuredDocx(docJson);

@@ -1056,7 +1056,13 @@
                             <div class="req-card-actions" @click.stop>
                                 <button class="btn btn-primary btn-small" @click="openRequirement(req)">Abrir</button>
                                 <button class="btn btn-secondary btn-small" @click="exportRequirement(req.id,'docx')">Word</button>
-                                <button class="btn btn-secondary btn-small" @click="exportRequirement(req.id,'pdf')">PDF</button>
+                                <span style="display:inline-flex;align-items:center;gap:3px;">
+                                    <select v-model="pdfTheme" @click.stop style="font-size:0.68rem;padding:2px 4px;border-radius:4px;border:1px solid var(--border);background:var(--card);color:var(--text);">
+                                        <option value="dark">🌙</option>
+                                        <option value="light">☀</option>
+                                    </select>
+                                    <button class="btn btn-secondary btn-small" @click="exportRequirement(req.id,'pdf')">PDF</button>
+                                </span>
                                 <button class="btn btn-danger btn-small" @click="deleteRequirement(req.id)">✕</button>
                             </div>
                         </div>
@@ -1071,7 +1077,13 @@
                         <template v-if="activeRequirement.doc_content">
                             <span style="font-size:0.72rem;color:var(--success);font-weight:600;">✓ Doc generado</span>
                             <button class="btn btn-secondary btn-small" @click="exportRequirement(activeRequirement.id,'docx')" :disabled="reqExporting">⬇ Word</button>
-                            <button class="btn btn-secondary btn-small" @click="exportRequirement(activeRequirement.id,'pdf')" :disabled="reqExporting">⬇ PDF</button>
+                            <span style="display:inline-flex;align-items:center;gap:4px;">
+                                <select v-model="pdfTheme" style="font-size:0.72rem;padding:3px 6px;border-radius:4px;border:1px solid var(--border);background:var(--card);color:var(--text);cursor:pointer;" title="Tema del PDF">
+                                    <option value="dark">🌙 Oscuro</option>
+                                    <option value="light">☀ Claro</option>
+                                </select>
+                                <button class="btn btn-secondary btn-small" @click="exportRequirement(activeRequirement.id,'pdf')" :disabled="reqExporting">⬇ PDF</button>
+                            </span>
                             <button class="btn btn-secondary btn-small" @click="generateDoc(true)" :disabled="reqGenerating" title="Regenerar documento desde la conversación">↺ Regenerar</button>
                         </template>
                         <template v-else>
@@ -1563,6 +1575,7 @@
                     reqPendingImage: null,
                     reqGenerating: false,
                     reqExporting: false,
+                    pdfTheme: 'dark',
                     showNewReqDialog: false,
                     newReqTitle: '',
                     newReqProvider: 'claude'
@@ -2506,7 +2519,7 @@
                         const resp = await fetch(`/api/requirements/${id}/export`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ format })
+                            body: JSON.stringify({ format, theme: format === 'pdf' ? this.pdfTheme : undefined })
                         });
                         if (!resp.ok) { this.showNotification('Error al exportar', 'error'); return; }
                         const blob = await resp.blob();
