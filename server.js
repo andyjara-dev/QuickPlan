@@ -1053,9 +1053,14 @@ async function generateDocContent(provider, messages, contextSummary, apiKey) {
         { role: 'user', content: DOC_GENERATION_PROMPT }
     ];
     const raw = await callAI(provider, msgsWithPrompt, contextSummary, apiKey, 4096);
+    console.log('[generateDocContent] raw length:', raw?.length, 'preview:', raw?.slice(0, 200));
     const match = raw.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error('La IA no devolvió JSON válido');
-    return JSON.parse(match[0]);
+    if (!match) throw new Error('La IA no devolvió JSON válido. Respuesta: ' + raw?.slice(0, 300));
+    try {
+        return JSON.parse(match[0]);
+    } catch (parseErr) {
+        throw new Error('JSON inválido de la IA: ' + parseErr.message + ' — fragmento: ' + match[0].slice(-200));
+    }
 }
 
 // ── Paleta del documento ──────────────────────────────────────────────────────
