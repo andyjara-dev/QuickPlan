@@ -1367,7 +1367,7 @@ function buildStructuredPdf(res, doc, theme = 'dark') {
         pdf.save().rect(0,PH-26,PW,26).fill(T.CARD).restore();
         pdf.save().rect(0,PH-2,PW,2).fill(T.ACCENT).restore();
         pdf.fillColor(T.FAINT).font('Helvetica').fontSize(7.5)
-            .text('Planning by andyjara.dev', 0, PH-18, { align: 'center', width: PW, lineBreak: false });
+            .text(`Generado por Planning by andyjara.dev  \xB7  ${date}`, 0, PH-18, { align: 'center', width: PW, lineBreak: false });
         if (pageNum > 0) {
             pdf.fillColor(T.FAINT).font('Helvetica').fontSize(7.5)
                 .text(`${pageNum}/${total}`, PW-M-10, PH-18, { align: 'right', width: 50, lineBreak: false });
@@ -1583,12 +1583,6 @@ function buildStructuredPdf(res, doc, theme = 'dark') {
         pdf.moveDown(1);
     }
 
-    checkPage(40);
-    pdf.moveDown(0.5);
-    pdf.save().moveTo(M, pdf.y).lineTo(PW-M, pdf.y).strokeColor(T.ACCENT).lineWidth(0.5).stroke().restore();
-    pdf.moveDown(0.5);
-    pdf.fillColor(T.FAINT).font('Helvetica').fontSize(7.5)
-        .text(`Generado por Planning by andyjara.dev · ${date}`, { align: 'center', width: CW });
 
     // Page numbers
     const range = pdf.bufferedPageRange();
