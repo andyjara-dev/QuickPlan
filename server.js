@@ -1360,6 +1360,10 @@ function buildStructuredPdf(res, doc, theme = 'dark') {
 
     const footer = (pageNum, total) => {
         const savedY = pdf.y;
+        // Temporarily disable bottom margin so text at PH-18 doesn't trigger a new page
+        const savedBottomMargin = pdf.page.margins.bottom;
+        pdf.page.margins.bottom = 0;
+
         pdf.save().rect(0,PH-26,PW,26).fill(T.CARD).restore();
         pdf.save().rect(0,PH-2,PW,2).fill(T.ACCENT).restore();
         pdf.fillColor(T.FAINT).font('Helvetica').fontSize(7.5)
@@ -1368,7 +1372,9 @@ function buildStructuredPdf(res, doc, theme = 'dark') {
             pdf.fillColor(T.FAINT).font('Helvetica').fontSize(7.5)
                 .text(`${pageNum}/${total}`, PW-M-10, PH-18, { align: 'right', width: 50, lineBreak: false });
         }
-        pdf.y = savedY; // restore cursor — prevents y drift from triggering extra pages
+
+        pdf.page.margins.bottom = savedBottomMargin;
+        pdf.y = savedY;
     };
 
     const newPage = () => { pdf.addPage(); bg(); accentTop(); pdf.y = M + 14; };
