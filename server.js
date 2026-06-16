@@ -1302,11 +1302,16 @@ function buildStructuredPdf(res, doc, theme = 'dark') {
     pdf.on('pageAdded', () => { bg(); accentTop(); });
 
     const footer = (pageNum, total) => {
+        const savedY = pdf.y;
         pdf.save().rect(0,PH-26,PW,26).fill(T.CARD).restore();
         pdf.save().rect(0,PH-2,PW,2).fill(T.ACCENT).restore();
         pdf.fillColor(T.FAINT).font('Helvetica').fontSize(7.5)
-            .text('Planning by andyjara.dev', 0, PH-18, { align: 'center', width: PW });
-        if (pageNum > 0) pdf.text(`${pageNum}/${total}`, PW-M-10, PH-18, { align: 'right', width: 30 });
+            .text('Planning by andyjara.dev', 0, PH-18, { align: 'center', width: PW, lineBreak: false });
+        if (pageNum > 0) {
+            pdf.fillColor(T.FAINT).font('Helvetica').fontSize(7.5)
+                .text(`${pageNum}/${total}`, PW-M-10, PH-18, { align: 'right', width: 50, lineBreak: false });
+        }
+        pdf.y = savedY; // restore cursor — prevents y drift from triggering extra pages
     };
 
     const newPage = () => { pdf.addPage(); bg(); accentTop(); pdf.y = M + 14; };
