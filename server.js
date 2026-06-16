@@ -1314,7 +1314,7 @@ function buildStructuredPdf(res, doc, theme = 'dark') {
     const checkPage = (needed = 80) => { if (pdf.y > PH - needed) newPage(); };
 
     const sectionHeader = (text, num) => {
-        checkPage(60);
+        checkPage(120);
         const y = pdf.y;
         pdf.save().rect(M-8, y-4, CW+16, 26).fill(T.ELEVATED).restore();
         pdf.save().rect(M-8, y-4, 3, 26).fill(T.ACCENT).restore();
@@ -1358,35 +1358,41 @@ function buildStructuredPdf(res, doc, theme = 'dark') {
     };
 
     const reqCard = (id, text) => {
-        checkPage(35);
+        checkPage(50);
         const y = pdf.y;
-        pdf.save().roundedRect(M+4, y-3, CW-8, 30, 5).fill(T.CARD).restore();
-        pdf.save().rect(M+4, y-3, 3, 30).fill(T.ACCENT).restore();
+        pdf.save().roundedRect(M+4, y, CW-8, 28, 5).fill(T.CARD).restore();
+        pdf.save().rect(M+4, y, 3, 28).fill(T.ACCENT).restore();
+        // ID label then reset y so main text starts at same row
         pdf.fillColor(T.ACCENT).font('Helvetica-Bold').fontSize(8)
-            .text(id, M+14, y, { width: 50 });
+            .text(id, M+14, y+4, { width: 50, lineBreak: false });
+        pdf.y = y;
         pdf.fillColor(T.TEXT).font('Helvetica').fontSize(9)
-            .text(text, M+68, y, { width: CW-80, lineGap: 1.5 });
+            .text(text, M+68, y+3, { width: CW-80, lineGap: 1.5 });
         pdf.moveDown(0.6);
     };
 
     const riskRow = (level, text, mitigation) => {
-        checkPage(40);
+        checkPage(80);
         const colors = { Alto: T.DANGER, Medio: T.WARNING, Bajo: T.SUCCESS };
         const col = colors[level] || T.MUTED;
         const y = pdf.y;
-        pdf.save().roundedRect(M+4, y-3, 44, 18, 4).fill(col).restore();
-        pdf.fillColor('#fff').font('Helvetica-Bold').fontSize(7.5)
-            .text(level, M+4, y+3, { width: 44, align: 'center' });
+        // Badge (purely graphical — no text cursor movement)
+        pdf.save().roundedRect(M+4, y, 46, 15, 4).fill(col).restore();
+        // Badge label: draw then reset y so next text starts at same row
+        pdf.fillColor('#ffffff').font('Helvetica-Bold').fontSize(7)
+            .text(level, M+4, y+4, { width: 46, align: 'center', lineBreak: false });
+        pdf.y = y; // reset cursor back to row start
+        // Risk text (starts at same y as badge, to the right)
         pdf.fillColor(T.TEXT).font('Helvetica-Bold').fontSize(9)
             .text(text, M+56, y, { width: CW-60, lineGap: 1.5 });
         if (mitigation) {
             pdf.fillColor(T.MUTED).font('Helvetica').fontSize(8.5)
-                .text('Mitigación: ' + mitigation, M+56, pdf.y+1, { width: CW-60, lineGap: 1.5 });
+                .text('Mitigacion: ' + mitigation, M+8, pdf.y+2, { width: CW-12, lineGap: 1.5 });
         }
-        pdf.moveDown(0.6);
-        pdf.save().moveTo(M+4, pdf.y-2).lineTo(PW-M-4, pdf.y-2)
+        pdf.moveDown(0.5);
+        pdf.save().moveTo(M+4, pdf.y).lineTo(PW-M-4, pdf.y)
             .strokeColor(T.BORDER).lineWidth(0.3).stroke().restore();
-        pdf.moveDown(0.2);
+        pdf.moveDown(0.4);
     };
 
     const roadmapPhase = (phase, color) => {
