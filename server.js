@@ -977,7 +977,7 @@ function toGeminiHistory(m) {
     return { role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content || '' }] };
 }
 
-async function callAI(provider, messages, contextSummary, apiKey) {
+async function callAI(provider, messages, contextSummary, apiKey, maxTokens = 1024) {
     if (!apiKey) throw new Error(`No hay API key configurada para ${provider}. Configúrala en ⚙ Ajustes.`);
 
     const historyToSend = messages.length > MAX_MESSAGES_BEFORE_SUMMARY
@@ -990,7 +990,10 @@ async function callAI(provider, messages, contextSummary, apiKey) {
 
     if (provider === 'gemini') {
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        const model = genAI.getGenerativeModel({
+            model: 'gemini-1.5-flash',
+            generationConfig: { maxOutputTokens: maxTokens }
+        });
         const last = historyToSend[historyToSend.length - 1];
         const chat = model.startChat({
             systemInstruction: systemWithSummary,
@@ -1005,7 +1008,7 @@ async function callAI(provider, messages, contextSummary, apiKey) {
         const anthropic = new Anthropic({ apiKey });
         const response = await anthropic.messages.create({
             model: 'claude-haiku-4-5-20251001',
-            max_tokens: 1024,
+            max_tokens: maxTokens,
             system: systemWithSummary,
             messages: historyToSend.map(toClaudeMsg)
         });
@@ -1049,7 +1052,7 @@ async function generateDocContent(provider, messages, contextSummary, apiKey) {
         ...messages.filter(m => m.role !== 'system'),
         { role: 'user', content: DOC_GENERATION_PROMPT }
     ];
-    const raw = await callAI(provider, msgsWithPrompt, contextSummary, apiKey);
+    const raw = await callAI(provider, msgsWithPrompt, contextSummary, apiKey, 4096);
     const match = raw.match(/\{[\s\S]*\}/);
     if (!match) throw new Error('La IA no devolvió JSON válido');
     return JSON.parse(match[0]);
