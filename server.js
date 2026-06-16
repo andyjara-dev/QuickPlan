@@ -1113,86 +1113,146 @@ function parseMsgParts(content) {
 }
 
 function buildStructuredDocx(doc) {
-    const T = PDF_THEME;
     const date = new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
     const children = [];
-    const p = (text, opts = {}) => new Paragraph({ children: [new TextRun({ text: text || '', ...opts })], ...opts._par });
-    const blank = () => new Paragraph({ text: '' });
-    const accent = c => c.replace('#', '');
+    const FONT = 'Calibri';
+    const ACCENT = '1F4E79';   // dark navy
+    const MUTED  = '595959';   // dark gray
+    const BLACK  = '000000';
+    const blank = () => new Paragraph({ children: [new TextRun({ text: '', font: FONT })] });
 
-    // Cover
-    children.push(new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Planning by andyjara.dev', bold: true, color: accent(T.ACCENT), size: 24 })] }));
-    children.push(new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: doc.title || 'Documento de Requerimientos', bold: true, color: 'E2E8F0', size: 40 })] }));
-    if (doc.subtitle) children.push(new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: doc.subtitle, color: '94A3B8', size: 20 })] }));
+    const run = (text, opts = {}) => new TextRun({ text: text || '', font: FONT, ...opts });
+
+    // ── Portada ───────────────────────────────────────────────────────────────
+    children.push(new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { before: 2400 },
+        children: [run(doc.title || 'Documento de Requerimientos', { bold: true, size: 48, color: ACCENT })]
+    }));
+    if (doc.subtitle) children.push(new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [run(doc.subtitle, { size: 24, color: MUTED })]
+    }));
     children.push(blank());
 
-    const meta = [['Empresa', doc.company], ['Responsable', doc.responsible], ['Versión', doc.version || '1.0'], ['Fecha', date]].filter(([,v]) => v);
+    const meta = [['Empresa', doc.company], ['Responsable', doc.responsible], ['Version', doc.version || '1.0'], ['Fecha', date]].filter(([,v]) => v);
     if (meta.length) {
         children.push(new Table({
             width: { size: 100, type: WidthType.PERCENTAGE },
             rows: [new TableRow({ children: meta.map(([l, v]) => new TableCell({
-                shading: { type: 'clear', color: 'auto', fill: accent(T.CARD) },
+                shading: { type: 'clear', color: 'auto', fill: 'F2F2F2' },
+                margins: { top: 100, bottom: 100, left: 150, right: 150 },
                 children: [
-                    new Paragraph({ children: [new TextRun({ text: l.toUpperCase(), color: '64748B', size: 16 })] }),
-                    new Paragraph({ children: [new TextRun({ text: v, bold: true, color: 'E2E8F0', size: 20 })] })
+                    new Paragraph({ children: [run(l.toUpperCase(), { size: 16, color: MUTED, bold: true })] }),
+                    new Paragraph({ children: [run(v, { size: 22, color: BLACK, bold: true })] })
                 ]
             })) })]
         }));
-        children.push(blank());
     }
 
+    children.push(new Paragraph({ pageBreakBefore: true, children: [] }));
+
+    // ── Secciones ─────────────────────────────────────────────────────────────
     let sNum = 1;
     for (const sec of (doc.sections || [])) {
-        children.push(new Paragraph({ heading: HeadingLevel.HEADING_2, children: [new TextRun({ text: `${sNum++}. ${sec.title.toUpperCase()}`, bold: true, color: accent(T.ACCENT) })] }));
+        children.push(new Paragraph({
+            heading: HeadingLevel.HEADING_1,
+            spacing: { before: 400, after: 200 },
+            border: { bottom: { style: 'single', size: 6, color: ACCENT } },
+            children: [run(`${sNum++}. ${sec.title}`, { bold: true, size: 28, color: ACCENT })]
+        }));
 
-        if (sec.content) children.push(new Paragraph({ children: [new TextRun({ text: sec.content, color: 'E2E8F0', size: 20 })] }));
+        if (sec.content) children.push(new Paragraph({
+            spacing: { after: 200 },
+            children: [run(sec.content, { size: 22, color: BLACK })]
+        }));
 
-        if (sec.steps) {
-            for (const step of sec.steps) {
-                children.push(new Paragraph({ children: [new TextRun({ text: '▶  ' + step.title, bold: true, color: accent(T.ACCENT), size: 20 })] }));
-                children.push(new Paragraph({ indent: { left: 300 }, children: [new TextRun({ text: step.desc, color: '94A3B8', size: 18 })] }));
-            }
+        if (sec.steps) for (const step of sec.steps) {
+            children.push(new Paragraph({
+                spacing: { before: 160, after: 60 },
+                indent: { left: 300 },
+                children: [run(step.title, { bold: true, size: 22, color: ACCENT })]
+            }));
+            if (step.desc) children.push(new Paragraph({
+                indent: { left: 600 },
+                children: [run(step.desc, { size: 20, color: MUTED })]
+            }));
         }
 
-        if (sec.items && sec.type === 'functional' || sec.type === 'nonfunctional') {
-            const items = sec.items || [];
-            for (const item of items) {
+        if ((sec.type === 'functional' || sec.type === 'nonfunctional') && sec.items) {
+            for (const item of sec.items) {
                 const id = item.id || '';
                 const text = item.text || item;
-                children.push(new Paragraph({ children: [new TextRun({ text: `${id}  `, bold: true, color: accent(T.ACCENT), size: 18 }), new TextRun({ text: text, color: 'E2E8F0', size: 18 })] }));
+                children.push(new Paragraph({
+                    spacing: { before: 80, after: 80 },
+                    indent: { left: 300 },
+                    children: [run(`${id}  `, { bold: true, size: 20, color: ACCENT }), run(text, { size: 20, color: BLACK })]
+                }));
             }
         } else if (Array.isArray(sec.items)) {
             for (const item of sec.items) {
                 if (typeof item === 'string') {
-                    children.push(new Paragraph({ bullet: { level: 0 }, children: [new TextRun({ text: item, color: 'E2E8F0', size: 19 })] }));
+                    children.push(new Paragraph({
+                        bullet: { level: 0 },
+                        spacing: { after: 80 },
+                        children: [run(item, { size: 20, color: BLACK })]
+                    }));
                 } else if (item.level) {
-                    const lvlColor = item.level === 'Alto' ? 'EF4444' : item.level === 'Medio' ? 'F59E0B' : '10B981';
-                    children.push(new Paragraph({ children: [new TextRun({ text: `[${item.level}]  `, bold: true, color: lvlColor, size: 18 }), new TextRun({ text: item.text, bold: true, color: 'E2E8F0', size: 18 })] }));
-                    if (item.mitigation) children.push(new Paragraph({ indent: { left: 300 }, children: [new TextRun({ text: 'Mitigación: ' + item.mitigation, color: '94A3B8', size: 17, italics: true })] }));
+                    const lvlColor = item.level === 'Alto' ? 'C00000' : item.level === 'Medio' ? 'C55A00' : '375623';
+                    children.push(new Paragraph({
+                        spacing: { before: 120, after: 40 },
+                        children: [run(`[${item.level}]  `, { bold: true, size: 20, color: lvlColor }), run(item.text || '', { bold: true, size: 20, color: BLACK })]
+                    }));
+                    if (item.mitigation) children.push(new Paragraph({
+                        indent: { left: 400 },
+                        spacing: { after: 80 },
+                        children: [run('Mitigacion: ' + item.mitigation, { size: 18, color: MUTED, italics: true })]
+                    }));
                 }
             }
         }
 
-        if (sec.phases) {
-            for (const ph of sec.phases) {
-                children.push(new Paragraph({ children: [new TextRun({ text: `${ph.name} · ${ph.duration}`, bold: true, color: accent(T.ACCENT), size: 18 })] }));
-                children.push(new Paragraph({ children: [new TextRun({ text: ph.title, bold: true, color: 'E2E8F0', size: 19 })] }));
-                if (ph.items) children.push(new Paragraph({ indent: { left: 300 }, children: [new TextRun({ text: ph.items, color: '94A3B8', size: 17 })] }));
-            }
+        if (sec.phases) for (const ph of sec.phases) {
+            children.push(new Paragraph({
+                spacing: { before: 160, after: 40 },
+                children: [run(`${ph.name || ''}${ph.duration ? ' - ' + ph.duration : ''}`, { bold: true, size: 18, color: MUTED })]
+            }));
+            children.push(new Paragraph({
+                indent: { left: 300 },
+                children: [run(ph.title || '', { bold: true, size: 22, color: BLACK })]
+            }));
+            if (ph.items) children.push(new Paragraph({
+                indent: { left: 600 },
+                spacing: { after: 80 },
+                children: [run(ph.items, { size: 18, color: MUTED })]
+            }));
         }
 
         children.push(blank());
     }
 
     if (doc.estimation) {
-        children.push(new Paragraph({ heading: HeadingLevel.HEADING_2, children: [new TextRun({ text: 'ESTIMACIÓN', bold: true, color: accent(T.ACCENT) })] }));
-        children.push(new Paragraph({ children: [new TextRun({ text: doc.estimation, color: 'E2E8F0', size: 20 })] }));
+        children.push(new Paragraph({
+            heading: HeadingLevel.HEADING_1,
+            spacing: { before: 400, after: 200 },
+            children: [run('Estimacion de Esfuerzo', { bold: true, size: 28, color: ACCENT })]
+        }));
+        children.push(new Paragraph({ children: [run(doc.estimation, { size: 22, color: BLACK })] }));
         children.push(blank());
     }
 
-    children.push(new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: `Generado por Planning by andyjara.dev · ${date}`, color: '64748B', size: 16 })] }));
+    children.push(new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { before: 800 },
+        children: [run(`Planning by andyjara.dev  -  ${date}`, { size: 16, color: MUTED, italics: true })]
+    }));
 
-    return new Document({ sections: [{ properties: {}, children }] });
+    return new Document({
+        styles: {
+            default: { document: { run: { font: FONT } } }
+        },
+        sections: [{ properties: {}, children }]
+    });
 }
 
 function buildDocxDocument(title, description, messages, userName, diagrams = []) {
@@ -1329,7 +1389,7 @@ function buildStructuredPdf(res, doc, theme = 'dark') {
     };
 
     const bodyText = (text, indent = 0) => {
-        checkPage(40);
+        checkPage(100);
         pdf.fillColor(T.TEXT).font('Helvetica').fontSize(9.5)
             .text(text, M+8+indent, pdf.y, { width: CW-16-indent, lineGap: 2.5 });
         pdf.moveDown(0.4);
@@ -1529,6 +1589,7 @@ function buildStructuredPdf(res, doc, theme = 'dark') {
 
     // Page numbers
     const range = pdf.bufferedPageRange();
+    console.log(`[PDF] Total pages: ${range.count}, last pdf.y: ${pdf.y.toFixed(1)}`);
     for (let i = 0; i < range.count; i++) {
         pdf.switchToPage(range.start + i);
         footer(i, range.count - 1);
