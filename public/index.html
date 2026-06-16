@@ -704,6 +704,20 @@
         }
         .chat-input:focus { outline: none; border-color: var(--border-focus); }
         .chat-typing { align-self: flex-start; color: var(--text-muted); font-size: 0.8rem; padding: 4px 14px; }
+        .chat-diagram {
+            align-self: flex-start; max-width: 100%;
+            background: var(--bg-elevated); border: 1px solid var(--border);
+            border-radius: 10px; padding: 14px; margin: 4px 0;
+        }
+        .chat-diagram svg { max-width: 100%; height: auto; }
+        .chat-diagram-label { font-size: 0.7rem; color: var(--text-faint); margin-top: 6px; text-align: center; }
+        .chat-code {
+            align-self: flex-start; max-width: 100%; width: 100%;
+            background: var(--bg-elevated); border-left: 3px solid var(--warning);
+            border-radius: 6px; padding: 10px 14px; font-family: monospace;
+            font-size: 0.8rem; color: var(--text-muted); white-space: pre-wrap;
+            word-break: break-all;
+        }
         .req-empty {
             text-align: center; padding: 60px 20px; color: var(--text-muted);
         }
@@ -1097,7 +1111,19 @@
                                 </div>
                                 <div v-for="(msg, i) in reqMessages" :key="i">
                                     <div class="chat-msg-label">{{ msg.role==='user' ? '👤 Tú' : '🤖 IA' }}</div>
-                                    <div :class="'chat-msg '+msg.role">{{ msg.content }}</div>
+                                    <template v-if="msg.role==='user'">
+                                        <div class="chat-msg user">{{ msg.content }}</div>
+                                    </template>
+                                    <template v-else>
+                                        <template v-for="(part, pi) in parseChatContent(msg.content)" :key="pi">
+                                            <div v-if="part.type==='text'" class="chat-msg assistant">{{ part.content }}</div>
+                                            <div v-else-if="part.type==='diagram'" class="chat-diagram" :data-diagram-idx="part.globalIdx">
+                                                <div :id="'mermaid-'+i+'-'+pi" class="mermaid-render">{{ part.content }}</div>
+                                                <div class="chat-diagram-label">📊 Diagrama generado por IA</div>
+                                            </div>
+                                            <div v-else-if="part.type==='code'" class="chat-code">{{ part.content }}</div>
+                                        </template>
+                                    </template>
                                 </div>
                                 <div v-if="reqIsTyping" class="chat-typing">🤖 IA escribiendo…</div>
                             </div>
@@ -1418,8 +1444,31 @@
     </div><!-- /app -->
 
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
 
     <script>
+        if (typeof mermaid !== 'undefined') {
+            mermaid.initialize({
+                startOnLoad: false,
+                theme: 'dark',
+                darkMode: true,
+                themeVariables: {
+                    background: '#141829',
+                    primaryColor: '#1e2640',
+                    primaryTextColor: '#e2e8f0',
+                    primaryBorderColor: '#4f8ef7',
+                    lineColor: '#4f8ef7',
+                    secondaryColor: '#1e2640',
+                    tertiaryColor: '#0d1117',
+                    edgeLabelBackground: '#141829',
+                    clusterBkg: '#1e2640',
+                    titleColor: '#e2e8f0',
+                    nodeTextColor: '#e2e8f0',
+                    fontFamily: 'Inter, Helvetica, sans-serif',
+                }
+            });
+        }
+
         const { createApp } = Vue;
 
         createApp({
@@ -2263,7 +2312,7 @@
                     this.activeRequirement = data;
                     this.reqMessages = data.messages || [];
                     this.reqInput = '';
-                    this.$nextTick(() => this.scrollChat());
+                    this.$nextTick(() => { this.scrollChat(); this.renderMermaid(); });
                 },
 
                 async saveRequirementMeta() {
@@ -2299,7 +2348,7 @@
                     if (res && res.ok) {
                         const data = await res.json();
                         this.reqMessages = data.messages;
-                        this.$nextTick(() => this.scrollChat());
+                        this.$nextTick(() => { this.scrollChat(); this.renderMermaid(); });
                     } else if (res) {
                         const err = await res.json().catch(() => ({}));
                         this.showNotification(err.error || 'Error al contactar la IA', 'error');
@@ -2312,12 +2361,77 @@
                     if (el) el.scrollTop = el.scrollHeight;
                 },
 
+                parseChatContent(content) {
+                    const parts = [];
+                    const re = /```(mermaid)?\n?([\s\S]*?)```/g;
+                    let last = 0, m, globalIdx = 0;
+                    while ((m = re.exec(content)) !== null) {
+                        const text = content.slice(last, m.index).trim();
+                        if (text) parts.push({ type: 'text', content: text });
+                        const isMermaid = m[1] === 'mermaid' || m[2].trim().match(/^(graph|sequenceDiagram|flowchart|classDiagram|stateDiagram|erDiagram|gantt|pie|journey|gitGraph)/);
+                        parts.push({ type: isMermaid ? 'diagram' : 'code', content: m[2].trim(), globalIdx: globalIdx++ });
+                        last = re.lastIndex;
+                    }
+                    const tail = content.slice(last).trim();
+                    if (tail) parts.push({ type: 'text', content: tail });
+                    return parts.length ? parts : [{ type: 'text', content }];
+                },
+
+                async renderMermaid() {
+                    await this.$nextTick();
+                    const els = document.querySelectorAll('.mermaid-render');
+                    if (!els.length || typeof mermaid === 'undefined') return;
+                    for (const el of els) {
+                        if (el.dataset.rendered) continue;
+                        try {
+                            const id = 'mermaid-svg-' + Math.random().toString(36).slice(2);
+                            const { svg } = await mermaid.render(id, el.textContent.trim());
+                            el.innerHTML = svg;
+                            el.dataset.rendered = '1';
+                        } catch (e) {
+                            el.innerHTML = `<pre style="color:var(--text-muted);font-size:0.75rem">${el.textContent}</pre>`;
+                            el.dataset.rendered = 'err';
+                        }
+                    }
+                },
+
+                async captureDiagrams() {
+                    const diagrams = [];
+                    const els = document.querySelectorAll('.chat-diagram[data-diagram-idx]');
+                    for (const el of els) {
+                        const idx = parseInt(el.dataset.diagramIdx);
+                        const svgEl = el.querySelector('svg');
+                        if (!svgEl) continue;
+                        try {
+                            const svgData = new XMLSerializer().serializeToString(svgEl);
+                            const canvas = document.createElement('canvas');
+                            const scale = 2;
+                            const w = svgEl.width?.baseVal?.value || svgEl.viewBox?.baseVal?.width || 500;
+                            const h = svgEl.height?.baseVal?.value || svgEl.viewBox?.baseVal?.height || 300;
+                            canvas.width = w * scale; canvas.height = h * scale;
+                            const ctx = canvas.getContext('2d');
+                            ctx.fillStyle = '#1e2640';
+                            ctx.fillRect(0, 0, canvas.width, canvas.height);
+                            ctx.scale(scale, scale);
+                            await new Promise((resolve, reject) => {
+                                const img = new Image();
+                                img.onload = () => { ctx.drawImage(img, 0, 0); resolve(); };
+                                img.onerror = reject;
+                                img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+                            });
+                            diagrams.push({ idx, png: canvas.toDataURL('image/png').split(',')[1] });
+                        } catch (e) { /* skip failed diagrams */ }
+                    }
+                    return diagrams;
+                },
+
                 async exportRequirement(id, format) {
                     try {
+                        const diagrams = await this.captureDiagrams();
                         const resp = await fetch(`/api/requirements/${id}/export`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ format })
+                            body: JSON.stringify({ format, diagrams })
                         });
                         if (!resp.ok) { this.showNotification('Error al exportar', 'error'); return; }
                         const blob = await resp.blob();

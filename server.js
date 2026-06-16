@@ -987,69 +987,324 @@ async function generateContextSummary(provider, messages, apiKey) {
     return callAI(provider, msgs, '', apiKey);
 }
 
-function buildDocxDocument(req, title, description, messages, userName) {
+// ── Paleta del documento ──────────────────────────────────────────────────────
+const PDF_THEME = {
+    BG:       '#0d1117',
+    CARD:     '#141829',
+    ELEVATED: '#1e2640',
+    ACCENT:   '#4f8ef7',
+    SUCCESS:  '#10b981',
+    WARNING:  '#f59e0b',
+    DANGER:   '#ef4444',
+    TEXT:     '#e2e8f0',
+    MUTED:    '#94a3b8',
+    FAINT:    '#64748b',
+    BORDER:   '#1e293b',
+};
+
+function parseMsgParts(content) {
+    const parts = [];
+    const re = /```(?:mermaid)?\n?([\s\S]*?)```/g;
+    let last = 0, m, idx = 0;
+    while ((m = re.exec(content)) !== null) {
+        if (m.index > last) parts.push({ type: 'text', content: content.slice(last, m.index) });
+        const isMermaid = content.slice(m.index, m.index + 12).includes('mermaid');
+        parts.push({ type: isMermaid ? 'diagram' : 'code', content: m[1].trim(), idx: idx++ });
+        last = re.lastIndex;
+    }
+    if (last < content.length) parts.push({ type: 'text', content: content.slice(last) });
+    return parts.length ? parts : [{ type: 'text', content }];
+}
+
+function buildDocxDocument(title, description, messages, userName, diagrams = []) {
+    const T = PDF_THEME;
     const date = new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
+
+    const shading = (color) => ({ type: 'clear', color: 'auto', fill: color.replace('#', '') });
+
     const children = [
-        new Paragraph({ text: 'Planning by andyjara.dev', heading: HeadingLevel.TITLE, alignment: AlignmentType.CENTER }),
-        new Paragraph({ text: title, heading: HeadingLevel.HEADING_1, alignment: AlignmentType.CENTER }),
-        new Paragraph({ children: [new TextRun({ text: `Generado el ${date}`, color: '666666' })], alignment: AlignmentType.CENTER }),
-        new Paragraph({ children: [new TextRun({ text: `Responsable: ${userName}`, color: '666666' })], alignment: AlignmentType.CENTER }),
+        // Cover header
+        new Paragraph({
+            alignment: AlignmentType.CENTER,
+            shading: shading(T.CARD),
+            children: [new TextRun({ text: 'Planning by andyjara.dev', bold: true, color: T.ACCENT.replace('#',''), size: 28 })]
+        }),
+        new Paragraph({
+            alignment: AlignmentType.CENTER,
+            shading: shading(T.BG),
+            children: [new TextRun({ text: title, bold: true, color: 'E2E8F0', size: 36 })]
+        }),
         new Paragraph({ text: '' }),
-        new Paragraph({ text: 'Descripción General', heading: HeadingLevel.HEADING_2 }),
-        new Paragraph({ text: description || 'Sin descripción adicional.' }),
+        new Paragraph({
+            alignment: AlignmentType.CENTER,
+            children: [new TextRun({ text: `Fecha: ${date}   ·   Responsable: ${userName}`, color: '94A3B8', size: 18 })]
+        }),
         new Paragraph({ text: '' }),
-        new Paragraph({ text: 'Conversación de Levantamiento', heading: HeadingLevel.HEADING_2 }),
+        new Paragraph({
+            children: [new TextRun({ text: '─'.repeat(80), color: T.ACCENT.replace('#',''), size: 16 })]
+        }),
+        new Paragraph({ text: '' }),
     ];
 
-    for (const msg of messages) {
-        const isUser = msg.role === 'user';
-        children.push(new Paragraph({
-            children: [
-                new TextRun({ text: isUser ? 'Usuario: ' : 'Asistente IA: ', bold: true, color: isUser ? '1a56db' : '047857' }),
-                new TextRun({ text: msg.content })
-            ]
-        }));
+    if (description) {
+        children.push(new Paragraph({ heading: HeadingLevel.HEADING_2, children: [new TextRun({ text: '1. DESCRIPCIÓN GENERAL', color: T.ACCENT.replace('#',''), bold: true })] }));
+        children.push(new Paragraph({ children: [new TextRun({ text: description, color: 'E2E8F0' })] }));
         children.push(new Paragraph({ text: '' }));
     }
 
-    children.push(new Paragraph({ text: 'Generado por Planning by andyjara.dev', alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Generado por Planning by andyjara.dev', color: '888888', size: 18 })] }));
+    children.push(new Paragraph({ heading: HeadingLevel.HEADING_2, children: [new TextRun({ text: `${description ? 2 : 1}. CONVERSACIÓN DE LEVANTAMIENTO`, color: T.ACCENT.replace('#',''), bold: true })] }));
+    children.push(new Paragraph({ text: '' }));
+
+    let diagramGlobalIdx = 0;
+    for (const msg of messages) {
+        const isUser = msg.role === 'user';
+        const roleColor = isUser ? '4F8EF7' : '10B981';
+        const roleName = isUser ? '▶ USUARIO' : '◆ ASISTENTE IA';
+
+        children.push(new Paragraph({
+            shading: shading(T.ELEVATED),
+            children: [new TextRun({ text: roleName, bold: true, color: roleColor, size: 18 })]
+        }));
+
+        const parts = parseMsgParts(msg.content);
+        for (const part of parts) {
+            if (part.type === 'text') {
+                const lines = part.content.trim().split('\n');
+                for (const line of lines) {
+                    children.push(new Paragraph({
+                        indent: { left: 200 },
+                        children: [new TextRun({ text: line, color: 'E2E8F0', size: 20 })]
+                    }));
+                }
+            } else if (part.type === 'diagram' || part.type === 'code') {
+                children.push(new Paragraph({
+                    shading: shading(T.CARD),
+                    indent: { left: 200 },
+                    children: [new TextRun({ text: part.type === 'diagram' ? '[ Diagrama ]' : '[ Código ]', color: 'F59E0B', bold: true, size: 18 })]
+                }));
+                const codeLines = part.content.split('\n');
+                for (const cl of codeLines) {
+                    children.push(new Paragraph({
+                        shading: shading(T.CARD),
+                        indent: { left: 360 },
+                        children: [new TextRun({ text: cl, font: 'Courier New', color: '94A3B8', size: 16 })]
+                    }));
+                }
+                diagramGlobalIdx++;
+            }
+        }
+        children.push(new Paragraph({ text: '' }));
+    }
+
+    children.push(new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [new TextRun({ text: `Generado por Planning by andyjara.dev · ${date}`, color: '64748B', size: 16 })]
+    }));
 
     return new Document({ sections: [{ properties: {}, children }] });
 }
 
-function buildPdfDocument(res, title, description, messages, userName) {
-    const doc = new PDFDocument({ margin: 60, size: 'A4' });
+function buildPdfDocument(res, title, description, messages, userName, diagrams = []) {
+    const T = PDF_THEME;
+    const PW = 595.28, PH = 841.89, M = 48, CW = PW - M * 2;
+    const date = new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
+
+    const doc = new PDFDocument({
+        margin: M, size: 'A4', autoFirstPage: false,
+        bufferPages: true,
+        info: { Title: title, Author: userName, Creator: 'Planning by andyjara.dev' }
+    });
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${title.replace(/[^a-z0-9]/gi, '_')}.pdf"`);
     doc.pipe(res);
 
-    const date = new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
-    doc.fontSize(22).font('Helvetica-Bold').text('Planning by andyjara.dev', { align: 'center' });
-    doc.moveDown(0.5);
-    doc.fontSize(16).text(title, { align: 'center' });
-    doc.moveDown(0.3);
-    doc.fontSize(10).font('Helvetica').fillColor('#666666').text(`Generado el ${date}`, { align: 'center' });
-    doc.text(`Responsable: ${userName}`, { align: 'center' });
-    doc.fillColor('#000000').moveDown(1);
+    const bg = () => doc.save().rect(0, 0, PW, PH).fill(T.BG).restore();
+    const accentBar = (h = 4) => doc.save().rect(0, 0, PW, h).fill(T.ACCENT).restore();
+    const footerBar = () => {
+        doc.save().rect(0, PH - 28, PW, 28).fill(T.CARD).restore();
+        doc.save().rect(0, PH - 3, PW, 3).fill(T.ACCENT).restore();
+        doc.fillColor(T.FAINT).font('Helvetica').fontSize(7.5)
+            .text('Planning by andyjara.dev', 0, PH - 19, { align: 'center', width: PW });
+    };
 
-    doc.fontSize(13).font('Helvetica-Bold').text('Descripción General');
-    doc.moveDown(0.3);
-    doc.fontSize(10).font('Helvetica').text(description || 'Sin descripción adicional.');
-    doc.moveDown(1);
+    const sectionHeader = (text, num) => {
+        if (doc.y > PH - 80) newPage();
+        const y = doc.y;
+        doc.save().rect(M - 8, y - 4, CW + 16, 26).fill(T.ELEVATED).restore();
+        doc.save().rect(M - 8, y - 4, 3, 26).fill(T.ACCENT).restore();
+        doc.fillColor(T.ACCENT).font('Helvetica-Bold').fontSize(9.5)
+            .text(`${num}.  ${text.toUpperCase()}`, M + 6, y + 4, { width: CW });
+        doc.moveDown(0.9);
+    };
 
-    doc.fontSize(13).font('Helvetica-Bold').text('Conversación de Levantamiento');
-    doc.moveDown(0.5);
+    const divider = (color = T.BORDER) => {
+        doc.save().moveTo(M, doc.y).lineTo(PW - M, doc.y).strokeColor(color).lineWidth(0.4).stroke().restore();
+        doc.moveDown(0.5);
+    };
+
+    const newPage = () => {
+        doc.addPage();
+        bg(); accentBar(); footerBar();
+        doc.y = M + 14;
+    };
+
+    // ── Portada ───────────────────────────────────────────────────────────────
+    doc.addPage(); bg();
+
+    // Top accent bar (thick)
+    doc.save().rect(0, 0, PW, 6).fill(T.ACCENT).restore();
+
+    // Diagonal decorative gradient band
+    doc.save().rect(0, 0, PW, 220).fill(T.CARD).restore();
+    doc.save().moveTo(0, 220).lineTo(PW, 160).lineTo(PW, 220).fill(T.BG).restore();
+
+    // Brand
+    doc.fillColor(T.ACCENT).font('Helvetica-Bold').fontSize(11)
+        .text('Planning by andyjara.dev', M, 52, { align: 'center', width: CW });
+
+    // Accent divider line
+    const cx = PW / 2;
+    doc.save().moveTo(cx - 50, 72).lineTo(cx + 50, 72).strokeColor(T.ACCENT).lineWidth(1.5).stroke().restore();
+
+    // Title
+    doc.fillColor(T.TEXT).font('Helvetica-Bold').fontSize(28)
+        .text(title, M, 90, { align: 'center', width: CW, lineGap: 4 });
+
+    // Description subtitle
+    if (description) {
+        doc.fillColor(T.MUTED).font('Helvetica').fontSize(10.5)
+            .text(description, M + 40, doc.y + 10, { align: 'center', width: CW - 80, lineGap: 3 });
+    }
+
+    // Metadata card
+    const metaTop = PH * 0.62;
+    const metaH = 90, metaW = 300, metaX = (PW - metaW) / 2;
+    doc.save().roundedRect(metaX, metaTop, metaW, metaH, 8).fill(T.CARD).restore();
+    doc.save().rect(metaX, metaTop, 3, metaH).fill(T.ACCENT).restore();
+
+    doc.fillColor(T.FAINT).font('Helvetica').fontSize(7.5)
+        .text('FECHA DE GENERACIÓN', metaX + 14, metaTop + 12, { width: metaW - 28 });
+    doc.fillColor(T.TEXT).font('Helvetica-Bold').fontSize(10)
+        .text(date, metaX + 14, metaTop + 22, { width: metaW - 28 });
+
+    doc.save().moveTo(metaX + 14, metaTop + 38).lineTo(metaX + metaW - 14, metaTop + 38)
+        .strokeColor(T.BORDER).lineWidth(0.4).stroke().restore();
+
+    doc.fillColor(T.FAINT).font('Helvetica').fontSize(7.5)
+        .text('RESPONSABLE', metaX + 14, metaTop + 46, { width: metaW - 28 });
+    doc.fillColor(T.TEXT).font('Helvetica-Bold').fontSize(10)
+        .text(userName, metaX + 14, metaTop + 56, { width: metaW - 28 });
+
+    doc.save().moveTo(metaX + 14, metaTop + 72).lineTo(metaX + metaW - 14, metaTop + 72)
+        .strokeColor(T.BORDER).lineWidth(0.4).stroke().restore();
+    doc.fillColor(T.FAINT).font('Helvetica').fontSize(7.5)
+        .text(`Documento generado automáticamente · ${messages.length} mensajes`, metaX + 14, metaTop + 78, { width: metaW - 28 });
+
+    // Bottom
+    doc.save().rect(0, PH - 28, PW, 28).fill(T.CARD).restore();
+    doc.save().rect(0, PH - 3, PW, 3).fill(T.ACCENT).restore();
+    doc.fillColor(T.FAINT).font('Helvetica').fontSize(7.5)
+        .text('Planning by andyjara.dev', 0, PH - 19, { align: 'center', width: PW });
+
+    // ── Páginas de contenido ──────────────────────────────────────────────────
+    newPage();
+
+    let sectionNum = 1;
+
+    if (description) {
+        sectionHeader('Descripción General', sectionNum++);
+        doc.fillColor(T.TEXT).font('Helvetica').fontSize(10)
+            .text(description, M + 8, doc.y, { width: CW - 16, lineGap: 3 });
+        doc.moveDown(1);
+        divider();
+    }
+
+    sectionHeader('Conversación de Levantamiento', sectionNum++);
+
+    // Build diagram lookup by global index
+    const dMap = {};
+    (diagrams || []).forEach(d => { dMap[d.idx] = d; });
+
+    let globalDiagIdx = 0;
 
     for (const msg of messages) {
         const isUser = msg.role === 'user';
-        doc.fontSize(10).font('Helvetica-Bold').fillColor(isUser ? '#1a56db' : '#047857')
-            .text(isUser ? 'Usuario:' : 'Asistente IA:', { continued: false });
-        doc.font('Helvetica').fillColor('#000000').text(msg.content, { indent: 10 });
+        const roleColor = isUser ? T.ACCENT : T.SUCCESS;
+        const roleName = isUser ? '▶  USUARIO' : '◆  ASISTENTE IA';
+
+        if (doc.y > PH - 100) newPage();
+
+        // Message header card
+        const hY = doc.y;
+        doc.save().rect(M - 8, hY - 3, CW + 16, 20).fill(T.ELEVATED).restore();
+        doc.save().rect(M - 8, hY - 3, 3, 20).fill(roleColor).restore();
+        doc.fillColor(roleColor).font('Helvetica-Bold').fontSize(8)
+            .text(roleName, M + 6, hY + 3, { width: CW - 10 });
         doc.moveDown(0.5);
+
+        const parts = parseMsgParts(msg.content);
+        for (const part of parts) {
+            if (part.type === 'text') {
+                const txt = part.content.trim();
+                if (!txt) continue;
+                if (doc.y > PH - 80) newPage();
+                doc.fillColor(T.TEXT).font('Helvetica').fontSize(9.5)
+                    .text(txt, M + 10, doc.y, { width: CW - 20, lineGap: 2.5 });
+            } else {
+                // diagram or code block
+                const dData = dMap[globalDiagIdx];
+                if (part.type === 'diagram' && dData && dData.png) {
+                    if (doc.y > PH - 180) newPage();
+                    doc.moveDown(0.4);
+                    const imgBuf = Buffer.from(dData.png, 'base64');
+                    const imgW = Math.min(CW - 20, 380);
+                    const imgX = M + (CW - imgW) / 2;
+                    // Card background
+                    doc.save().roundedRect(M + 5, doc.y - 6, CW - 10, imgW * 0.55 + 28, 6).fill(T.ELEVATED).restore();
+                    doc.image(imgBuf, imgX, doc.y, { width: imgW, align: 'center' });
+                    doc.moveDown(0.5);
+                    doc.fillColor(T.FAINT).font('Helvetica').fontSize(7.5)
+                        .text('Diagrama generado por IA', { align: 'center', width: CW });
+                    doc.moveDown(0.5);
+                } else {
+                    // Code block (mermaid source or generic code)
+                    if (doc.y > PH - 80) newPage();
+                    doc.moveDown(0.3);
+                    const codeY = doc.y;
+                    const codeLines = part.content.split('\n');
+                    const blockH = codeLines.length * 11 + 22;
+                    doc.save().roundedRect(M + 5, codeY - 6, CW - 10, blockH, 5).fill(T.ELEVATED).restore();
+                    doc.save().rect(M + 5, codeY - 6, 3, blockH).fill(T.WARNING).restore();
+                    doc.fillColor(T.WARNING).font('Helvetica-Bold').fontSize(7.5)
+                        .text(part.type === 'diagram' ? 'DIAGRAMA (mermaid)' : 'CÓDIGO', M + 14, codeY, { width: CW - 24 });
+                    doc.moveDown(0.2);
+                    doc.fillColor(T.MUTED).font('Courier').fontSize(7.5)
+                        .text(part.content.trim(), M + 14, doc.y, { width: CW - 28, lineGap: 1.5 });
+                    doc.moveDown(0.6);
+                }
+                globalDiagIdx++;
+            }
+        }
+        doc.moveDown(0.5);
+        doc.save().moveTo(M + 4, doc.y - 3).lineTo(PW - M - 4, doc.y - 3)
+            .strokeColor(T.BORDER).lineWidth(0.3).stroke().restore();
+        doc.moveDown(0.4);
     }
 
     doc.moveDown(1);
-    doc.fontSize(9).fillColor('#888888').text('Generado por Planning by andyjara.dev', { align: 'center' });
+    divider(T.ACCENT);
+    doc.fillColor(T.FAINT).font('Helvetica').fontSize(7.5)
+        .text(`Generado por Planning by andyjara.dev · ${date} · Responsable: ${userName}`, { align: 'center', width: CW });
+
+    // Page numbers
+    const range = doc.bufferedPageRange();
+    for (let i = 0; i < range.count; i++) {
+        doc.switchToPage(range.start + i);
+        if (i === 0) continue; // skip cover
+        doc.fillColor(T.FAINT).font('Helvetica').fontSize(7.5)
+            .text(`Pág. ${i} / ${range.count - 1}`, PW - M - 40, PH - 20, { width: 40, align: 'right' });
+    }
+
     doc.end();
 }
 
@@ -1150,11 +1405,13 @@ app.post('/api/requirements/:id/export', requireAuth, async (req, res) => {
         const messages = JSON.parse(row.messages || '[]');
         const userName = req.user.name;
 
+        const diagrams = req.body.diagrams || [];
+
         if (format === 'pdf') {
-            buildPdfDocument(res, row.title, row.description, messages, userName);
+            buildPdfDocument(res, row.title, row.description, messages, userName, diagrams);
         } else {
             try {
-                const doc = buildDocxDocument(req, row.title, row.description, messages, userName);
+                const doc = buildDocxDocument(row.title, row.description, messages, userName, diagrams);
                 const buffer = await Packer.toBuffer(doc);
                 res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
                 res.setHeader('Content-Disposition', `attachment; filename="${row.title.replace(/[^a-z0-9]/gi, '_')}.docx"`);
