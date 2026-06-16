@@ -1024,28 +1024,34 @@ async function generateContextSummary(provider, messages, apiKey) {
 
 // ── Prompt síntesis de documento ─────────────────────────────────────────────
 
-const DOC_GENERATION_PROMPT = `Basado en la conversación de levantamiento de requerimientos, genera un documento técnico de requerimientos estructurado.
-Responde ÚNICAMENTE con un JSON válido, sin texto adicional, sin bloques markdown, con este esquema exacto:
+const DOC_GENERATION_PROMPT = `Basado EXCLUSIVAMENTE en la información presente en esta conversación, genera un documento técnico de requerimientos estructurado.
+REGLAS ESTRICTAS:
+- NO inventes información que no haya sido mencionada explícitamente en la conversación.
+- NO agregues secciones, pasos, riesgos ni criterios que no se hayan discutido.
+- Si no hay información suficiente para una sección, OMÍTELA completamente.
+- Usa solo texto plano (sin asteriscos, sin markdown, sin caracteres especiales).
+- Responde ÚNICAMENTE con un JSON válido, sin texto adicional ni bloques de código.
+
+Esquema JSON (incluye solo los campos con información real de la conversación):
 {
-  "title": "título del proyecto",
-  "subtitle": "subtítulo descriptivo (ej: Documento de requerimiento técnico)",
-  "company": "empresa o cliente",
-  "responsible": "responsable técnico identificado",
+  "title": "título del proyecto mencionado",
+  "subtitle": "Documento de Requerimiento Tecnico",
+  "company": "empresa o cliente si fue mencionado",
+  "responsible": "responsable si fue mencionado",
   "version": "1.0",
   "sections": [
-    { "type": "context",       "title": "Antecedentes",               "content": "párrafo descriptivo del contexto y antecedentes" },
-    { "type": "current",       "title": "Situación Actual (As-Is)",   "content": "descripción general", "steps": [{"title":"Nombre paso","desc":"descripción"}] },
-    { "type": "problem",       "title": "Problemática y Motivación",  "items": ["problema 1","problema 2"] },
-    { "type": "target",        "title": "Modelo Objetivo (To-Be)",    "content": "descripción general", "steps": [{"title":"Nombre paso","desc":"descripción"}] },
-    { "type": "functional",    "title": "Requerimientos Funcionales", "items": [{"id":"RF-01","text":"descripción"}] },
-    { "type": "nonfunctional", "title": "Requerimientos No Funcionales", "items": [{"id":"RNF-01","text":"descripción"}] },
-    { "type": "risks",         "title": "Riesgos Identificados",      "items": [{"level":"Alto","text":"riesgo","mitigation":"mitigación"}] },
-    { "type": "roadmap",       "title": "Roadmap Estimado",           "phases": [{"name":"Fase 1","duration":"Semanas 1-3","title":"nombre fase","items":"tareas separadas por punto medio"}] },
-    { "type": "acceptance",    "title": "Criterios de Aceptación",    "items": ["criterio 1"] }
+    { "type": "context",       "title": "Antecedentes",               "content": "solo lo mencionado en la conversacion" },
+    { "type": "current",       "title": "Situacion Actual",           "content": "descripcion general", "steps": [{"title":"Nombre paso","desc":"descripcion breve"}] },
+    { "type": "problem",       "title": "Problematica",               "items": ["solo problemas mencionados"] },
+    { "type": "target",        "title": "Modelo Objetivo",            "content": "descripcion general", "steps": [{"title":"Nombre paso","desc":"descripcion breve"}] },
+    { "type": "functional",    "title": "Requerimientos Funcionales", "items": [{"id":"RF-01","text":"descripcion"}] },
+    { "type": "nonfunctional", "title": "Requerimientos No Funcionales", "items": [{"id":"RNF-01","text":"descripcion"}] },
+    { "type": "risks",         "title": "Riesgos Identificados",      "items": [{"level":"Alto","text":"riesgo","mitigation":"mitigacion"}] },
+    { "type": "roadmap",       "title": "Roadmap Estimado",           "phases": [{"name":"Fase 1","duration":"Semanas 1-3","title":"nombre fase","items":"tarea 1 · tarea 2 · tarea 3"}] },
+    { "type": "acceptance",    "title": "Criterios de Aceptacion",    "items": ["criterio mencionado"] }
   ],
-  "estimation": "texto breve con estimación de esfuerzo, equipo y plazo total"
-}
-Incluye solo las secciones para las que hay información suficiente en la conversación. El campo steps en current/target puede omitirse si no aplica. Sé preciso y profesional.`;
+  "estimation": "estimacion si fue discutida en la conversacion"
+}`;
 
 async function generateDocContent(provider, messages, contextSummary, apiKey) {
     const msgsWithPrompt = [
@@ -1278,7 +1284,8 @@ function buildStructuredPdf(res, doc) {
     const accentTop = () => pdf.save().rect(0,0,PW,5).fill(T.ACCENT).restore();
 
     // Ensure every auto-added page (from text overflow) also gets dark background
-    pdf.on('pageAdded', () => { bg(); accentTop(); pdf.y = M + 14; });
+    // Do NOT reset pdf.y here — PDFKit manages it internally during text wrapping
+    pdf.on('pageAdded', () => { bg(); accentTop(); });
 
     const footer = (pageNum, total) => {
         pdf.save().rect(0,PH-26,PW,26).fill(T.CARD).restore();
@@ -1331,7 +1338,7 @@ function buildStructuredPdf(res, doc) {
         if (!isLast) {
             checkPage(20);
             pdf.fillColor(T.FAINT).font('Helvetica').fontSize(14)
-                .text('↓', 0, pdf.y, { align: 'center', width: PW });
+                .text('|', 0, pdf.y, { align: 'center', width: PW });
             pdf.moveDown(0.3);
         }
     };
@@ -1388,7 +1395,7 @@ function buildStructuredPdf(res, doc) {
     const checkItem = (text) => {
         checkPage(25);
         const y = pdf.y;
-        pdf.fillColor(T.SUCCESS).font('Helvetica-Bold').fontSize(10).text('✓', M+8, y, { width: 16 });
+        pdf.save().roundedRect(M+8, y+1, 10, 10, 2).fill(T.SUCCESS).restore();
         pdf.fillColor(T.TEXT).font('Helvetica').fontSize(9.5)
             .text(text, M+24, y, { width: CW-28, lineGap: 2 });
         pdf.moveDown(0.35);
