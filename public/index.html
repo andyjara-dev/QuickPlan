@@ -248,6 +248,12 @@
 
         .modal-body { padding: 20px 24px; }
 
+        .modal-footer {
+            display: flex; align-items: center; justify-content: flex-end; gap: 8px;
+            padding: 16px 24px;
+            border-top: 1px solid var(--border);
+        }
+
         .modal-section { margin-bottom: 24px; }
 
         .modal-section-title {
@@ -838,14 +844,15 @@
         <!-- Diálogo de compartición -->
         <!-- Modal ShowMe -->
         <div v-if="showShowMeDialog" class="modal-overlay" @click.self="showShowMeDialog = false">
-            <div class="modal" style="max-width:420px">
-                <div class="modal-header">
-                    <h2 class="modal-title">📊 Importar diagrama de ShowMe</h2>
+            <div class="modal" style="max-width:400px">
+                <div class="modal-header" style="gap:12px">
+                    <img src="/showme-icon.png" style="width:28px;height:28px;object-fit:contain;flex-shrink:0;">
+                    <h2 class="modal-title" style="flex:1">Importar diagrama de ShowMe</h2>
                     <button class="modal-close" @click="showShowMeDialog = false">✕</button>
                 </div>
-                <div class="modal-body">
-                    <p style="font-size:0.85rem;opacity:0.7;margin-bottom:12px;">
-                        En ShowMe, abre tu diagrama → panel <strong>Integrar</strong> → copia el código.
+                <div class="modal-body" style="padding-top:16px;padding-bottom:16px">
+                    <p style="font-size:0.82rem;color:var(--text-muted);margin:0 0 14px;">
+                        En ShowMe, abre tu diagrama → panel <strong style="color:var(--text-primary)">Integrar</strong> → copia el código.
                     </p>
                     <input ref="showMeInput" v-model="showMeCode" class="form-input"
                         placeholder="showme:abc123xyz"
@@ -1193,7 +1200,9 @@
                                 <div class="chat-input-row">
                                     <input type="file" ref="imgFileInput" accept="image/*" style="display:none" @change="onImageSelected">
                                     <button class="btn btn-secondary btn-icon" @click="$refs.imgFileInput.click()" title="Adjuntar imagen" :disabled="reqIsTyping">🖼</button>
-                                    <button class="btn btn-secondary btn-icon" @click="openShowMeDialog" title="Importar diagrama de ShowMe" :disabled="reqIsTyping">📊</button>
+                                    <button class="btn btn-secondary btn-icon" @click="openShowMeDialog" title="Importar diagrama de ShowMe" :disabled="reqIsTyping">
+                                        <img src="/showme-icon.png" style="width:18px;height:18px;object-fit:contain;display:block;">
+                                    </button>
                                     <textarea class="chat-input" v-model="reqInput"
                                         placeholder="Describe el proyecto, adjunta imágenes o pide el plan final…"
                                         @keydown.enter.exact.prevent="sendReqMessage"
