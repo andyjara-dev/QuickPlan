@@ -16,6 +16,7 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, BorderStyle, AlignmentType, Footer } = require('docx');
 const PDFDocument = require('pdfkit');
 const crypto = require('crypto');
+const jwt = require('jsonwebtoken');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -311,6 +312,39 @@ app.get('/api/me', (req, res) => {
         username: req.user.username,
         avatar: req.user.avatar
     });
+});
+
+// ── ShowMe integration ────────────────────────────────────────────────────────
+
+app.post('/api/showme/fetch-image', requireAuth, async (req, res) => {
+    const suiteSecret = process.env.SUITE_SECRET;
+    const showmeUrl = process.env.SHOWME_URL || 'https://showme.andyjara.dev';
+    if (!suiteSecret) return res.status(503).json({ error: 'SUITE_SECRET no configurado en este servidor.' });
+
+    const { code } = req.body;
+    if (!code || typeof code !== 'string') return res.status(400).json({ error: 'Se requiere el campo "code".' });
+
+    const shareId = code.startsWith('showme:') ? code.slice(7) : code.trim();
+    if (!shareId) return res.status(400).json({ error: 'Código de ShowMe inválido.' });
+
+    const token = jwt.sign({ userId: req.user.id, appId: 'quickplan' }, suiteSecret, { expiresIn: '1h' });
+
+    const imgRes = await fetch(`${showmeUrl}/api/v1/embed/${shareId}/image`, {
+        headers: { Authorization: `Bearer ${token}` }
+    });
+
+    if (imgRes.status === 404) return res.status(404).json({ error: 'Diagrama no encontrado o no público.' });
+    if (!imgRes.ok) return res.status(502).json({ error: `Error al contactar ShowMe: ${imgRes.status}` });
+
+    const buffer = Buffer.from(await imgRes.arrayBuffer());
+    const data = buffer.toString('base64');
+    const mediaType = imgRes.headers.get('content-type') || 'image/png';
+
+    const disposition = imgRes.headers.get('content-disposition') || '';
+    const nameMatch = disposition.match(/filename="?([^"]+)"?/);
+    const title = nameMatch ? decodeURIComponent(nameMatch[1]) : `diagrama-showme-${shareId}.png`;
+
+    res.json({ data, mediaType, title });
 });
 
 // ── Health checks ────────────────────────────────────────────────────────────

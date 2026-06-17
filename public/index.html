@@ -836,6 +836,32 @@
         </div>
 
         <!-- Diálogo de compartición -->
+        <!-- Modal ShowMe -->
+        <div v-if="showShowMeDialog" class="modal-overlay" @click.self="showShowMeDialog = false">
+            <div class="modal" style="max-width:420px">
+                <div class="modal-header">
+                    <h2 class="modal-title">📊 Importar diagrama de ShowMe</h2>
+                    <button class="modal-close" @click="showShowMeDialog = false">✕</button>
+                </div>
+                <div class="modal-body">
+                    <p style="font-size:0.85rem;opacity:0.7;margin-bottom:12px;">
+                        En ShowMe, abre tu diagrama → panel <strong>Integrar</strong> → copia el código.
+                    </p>
+                    <input ref="showMeInput" v-model="showMeCode" class="form-input"
+                        placeholder="showme:abc123xyz"
+                        @keydown.enter.exact.prevent="importFromShowMe"
+                        style="width:100%">
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @click="showShowMeDialog = false">Cancelar</button>
+                    <button class="btn btn-primary" :disabled="showMeImporting || !showMeCode.trim()" @click="importFromShowMe">
+                        <span v-if="showMeImporting">Importando…</span>
+                        <span v-else>Importar imagen</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <div v-if="showShareDialog" class="modal-overlay" @click.self="showShareDialog = false">
             <div class="modal">
                 <div class="modal-header">
@@ -1167,6 +1193,7 @@
                                 <div class="chat-input-row">
                                     <input type="file" ref="imgFileInput" accept="image/*" style="display:none" @change="onImageSelected">
                                     <button class="btn btn-secondary btn-icon" @click="$refs.imgFileInput.click()" title="Adjuntar imagen" :disabled="reqIsTyping">🖼</button>
+                                    <button class="btn btn-secondary btn-icon" @click="openShowMeDialog" title="Importar diagrama de ShowMe" :disabled="reqIsTyping">📊</button>
                                     <textarea class="chat-input" v-model="reqInput"
                                         placeholder="Describe el proyecto, adjunta imágenes o pide el plan final…"
                                         @keydown.enter.exact.prevent="sendReqMessage"
@@ -1574,7 +1601,10 @@
                     pdfTheme: 'dark',
                     showNewReqDialog: false,
                     newReqTitle: '',
-                    newReqProvider: 'claude'
+                    newReqProvider: 'claude',
+                    showShowMeDialog: false,
+                    showMeCode: '',
+                    showMeImporting: false
                 };
             },
 
@@ -2372,6 +2402,37 @@
                         this.activeRequirement.updated_at = data.updated_at;
                         const idx = this.requirements.findIndex(r => r.id === id);
                         if (idx >= 0) Object.assign(this.requirements[idx], { title, description, ai_provider, status });
+                    }
+                },
+
+                openShowMeDialog() {
+                    this.showShowMeDialog = true;
+                    this.$nextTick(() => this.$refs.showMeInput && this.$refs.showMeInput.focus());
+                },
+
+                async importFromShowMe() {
+                    const code = this.showMeCode.trim();
+                    if (!code || this.showMeImporting) return;
+                    this.showMeImporting = true;
+                    const res = await this.apiFetch('/api/showme/fetch-image', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ code })
+                    });
+                    this.showMeImporting = false;
+                    if (res && res.ok) {
+                        const { data, mediaType, title } = await res.json();
+                        this.reqPendingImage = {
+                            name: title || `diagrama-showme.png`,
+                            mediaType,
+                            dataUrl: `data:${mediaType};base64,${data}`,
+                            data
+                        };
+                        this.showShowMeDialog = false;
+                        this.showMeCode = '';
+                    } else if (res) {
+                        const err = await res.json().catch(() => ({}));
+                        this.showNotification(err.error || 'Error importando diagrama de ShowMe', 'error');
                     }
                 },
 
