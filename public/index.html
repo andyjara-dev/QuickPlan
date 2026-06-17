@@ -854,10 +854,9 @@
                     <p style="font-size:0.82rem;color:var(--text-muted);margin:0 0 14px;">
                         En ShowMe, abre tu diagrama → panel <strong style="color:var(--text-primary)">Integrar</strong> → copia el código.
                     </p>
-                    <input ref="showMeInput" v-model="showMeCode" class="form-input"
+                    <input ref="showMeInput" v-model="showMeCode" class="input-field"
                         placeholder="showme:abc123xyz"
-                        @keydown.enter.exact.prevent="importFromShowMe"
-                        style="width:100%">
+                        @keydown.enter.exact.prevent="importFromShowMe">
                 </div>
                 <div class="modal-footer">
                     <button class="btn btn-secondary" @click="showShowMeDialog = false">Cancelar</button>
