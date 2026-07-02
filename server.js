@@ -1105,6 +1105,22 @@ function extractMessageImages(messages) {
     return images;
 }
 
+// Garantiza que ninguna imagen adjunta se pierda: si la IA no la referenció en ninguna
+// sección (o el documento venía de un doc_content cacheado generado antes de soportar
+// imágenes), la agrega al final en secciones propias en lugar de omitirla.
+function attachOrphanImages(docJson, images) {
+    if (!images.length) return docJson;
+    const referenced = new Set((docJson.sections || []).map(s => s.image).filter(Boolean));
+    const orphans = images.filter(img => !referenced.has(img.id));
+    if (!orphans.length) return docJson;
+    const extraSections = orphans.map((img, i) => ({
+        type: 'attachments',
+        title: orphans.length > 1 ? `Diagrama / Captura Adjunta ${i + 1}` : 'Diagrama / Captura Adjunta',
+        image: img.id
+    }));
+    return { ...docJson, sections: [...(docJson.sections || []), ...extraSections] };
+}
+
 // Antepone "[Imagen adjunta: img_N]" al texto de cada mensaje con imagen, para que la IA
 // pueda citar el id correcto al generar el documento.
 function annotateMessagesWithImageIds(messages) {
@@ -2103,15 +2119,16 @@ app.post('/api/requirements/:id/export', requireAuth, async (req, res) => {
         if (!docJson) return res.status(400).json({ error: 'No hay conversación para exportar' });
 
         const images = extractMessageImages(messages);
+        const finalDoc = attachOrphanImages(docJson, images);
 
         if (format === 'pdf') {
-            buildStructuredPdf(res, docJson, theme || 'dark', images);
+            buildStructuredPdf(res, finalDoc, theme || 'dark', images);
         } else {
             try {
-                const wordDoc = buildStructuredDocx(docJson, images);
+                const wordDoc = buildStructuredDocx(finalDoc, images);
                 const buffer = await Packer.toBuffer(wordDoc);
                 res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-                res.setHeader('Content-Disposition', `attachment; filename="${(docJson.title||row.title).replace(/[^a-z0-9]/gi,'_')}.docx"`);
+                res.setHeader('Content-Disposition', `attachment; filename="${(finalDoc.title||row.title).replace(/[^a-z0-9]/gi,'_')}.docx"`);
                 res.send(buffer);
             } catch (e) {
                 res.status(500).json({ error: e.message });
