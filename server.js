@@ -13,7 +13,7 @@ const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const SQLiteStore = require('connect-sqlite3')(session);
 const Anthropic = require('@anthropic-ai/sdk');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-const { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, BorderStyle, AlignmentType, Footer } = require('docx');
+const { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, BorderStyle, AlignmentType, Footer, ImageRun } = require('docx');
 const PDFDocument = require('pdfkit');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
@@ -1087,10 +1087,45 @@ Esquema JSON (incluye solo los campos con información real de la conversación)
   "estimation": "estimacion si fue discutida en la conversacion"
 }`;
 
+const IMAGE_REFERENCE_INSTRUCTIONS = `
+
+IMÁGENES ADJUNTAS EN LA CONVERSACIÓN:
+Se adjuntaron una o más imágenes, marcadas en los mensajes como "[Imagen adjunta: img_N]". Si el contenido de una sección del documento hace referencia directa a una de esas imágenes (ej. un diagrama de arquitectura, un mockup o una captura de pantalla discutida en ese punto de la conversación), agrega el campo opcional "image": "img_N" a esa sección del JSON para insertarla justo después de su contenido. Usa el id EXACTO tal como aparece (img_1, img_2, ...), nunca inventes ids que no existan. Si ninguna sección se relaciona con una imagen, omite el campo por completo.`;
+
+// Numera las imágenes adjuntas en la conversación (img_1, img_2, ...) en orden de aparición.
+function extractMessageImages(messages) {
+    const images = [];
+    let n = 0;
+    for (const m of messages) {
+        if (m.image && m.image.data && m.image.mediaType) {
+            n++;
+            images.push({ id: `img_${n}`, data: m.image.data, mediaType: m.image.mediaType });
+        }
+    }
+    return images;
+}
+
+// Antepone "[Imagen adjunta: img_N]" al texto de cada mensaje con imagen, para que la IA
+// pueda citar el id correcto al generar el documento.
+function annotateMessagesWithImageIds(messages) {
+    let n = 0;
+    return messages.map(m => {
+        if (m.image && m.image.data && m.image.mediaType) {
+            n++;
+            return { ...m, content: `[Imagen adjunta: img_${n}] ${m.content || ''}`.trim() };
+        }
+        return m;
+    });
+}
+
 async function generateDocContent(provider, messages, contextSummary, apiKey) {
+    const filtered = messages.filter(m => m.role !== 'system');
+    const annotated = annotateMessagesWithImageIds(filtered);
+    const hasImages = annotated.some(m => m.image);
+    const promptText = hasImages ? DOC_GENERATION_PROMPT + IMAGE_REFERENCE_INSTRUCTIONS : DOC_GENERATION_PROMPT;
     const msgsWithPrompt = [
-        ...messages.filter(m => m.role !== 'system'),
-        { role: 'user', content: DOC_GENERATION_PROMPT }
+        ...annotated,
+        { role: 'user', content: promptText }
     ];
     const raw = await callAI(provider, msgsWithPrompt, contextSummary, apiKey, 4096);
     console.log('[generateDocContent] raw length:', raw?.length, 'preview:', raw?.slice(0, 200));
@@ -1146,7 +1181,43 @@ function parseMsgParts(content) {
     return parts.length ? parts : [{ type: 'text', content }];
 }
 
-function buildStructuredDocx(doc) {
+// ── Utilidades de imágenes embebidas (diagramas de ShowMe, capturas adjuntas) ─
+
+// Lee el ancho/alto en píxeles directamente de la cabecera del archivo (sin dependencias externas).
+function getImageDimensions(buffer, mediaType) {
+    try {
+        if (mediaType === 'image/png' && buffer.length >= 24 && buffer.readUInt32BE(0) === 0x89504e47) {
+            return { width: buffer.readUInt32BE(16), height: buffer.readUInt32BE(20) };
+        }
+        if ((mediaType === 'image/jpeg' || mediaType === 'image/jpg') && buffer[0] === 0xff && buffer[1] === 0xd8) {
+            let offset = 2;
+            while (offset + 9 < buffer.length) {
+                if (buffer[offset] !== 0xff) break;
+                const marker = buffer[offset + 1];
+                const isSOF = marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc;
+                if (isSOF) return { height: buffer.readUInt16BE(offset + 5), width: buffer.readUInt16BE(offset + 7) };
+                offset += 2 + buffer.readUInt16BE(offset + 2);
+            }
+        }
+    } catch (e) { /* usa el tamaño por defecto */ }
+    return { width: 800, height: 500 };
+}
+
+// Escala width/height al recuadro máximo dado, preservando la relación de aspecto.
+function fitDimensions(width, height, maxW, maxH) {
+    if (!width || !height) return { width: maxW, height: Math.round(maxW * 0.6) };
+    const ratio = Math.min(maxW / width, maxH / height, 1);
+    return { width: Math.round(width * ratio), height: Math.round(height * ratio) };
+}
+
+// docx/pdfkit solo embeben PNG y JPEG de forma nativa.
+function embeddableImageType(mediaType) {
+    if (mediaType === 'image/png') return 'png';
+    if (mediaType === 'image/jpeg' || mediaType === 'image/jpg') return 'jpg';
+    return null;
+}
+
+function buildStructuredDocx(doc, images = []) {
     const date = new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
     const children = [];
     const FONT = 'Calibri';
@@ -1156,6 +1227,27 @@ function buildStructuredDocx(doc) {
     const blank = () => new Paragraph({ children: [new TextRun({ text: '', font: FONT })] });
 
     const run = (text, opts = {}) => new TextRun({ text: text || '', font: FONT, ...opts });
+    const imageMap = new Map(images.map(img => [img.id, img]));
+
+    const imageParagraph = (imgRef) => {
+        const img = imageMap.get(imgRef);
+        if (!img) return null;
+        const type = embeddableImageType(img.mediaType);
+        if (!type) return null;
+        try {
+            const buffer = Buffer.from(img.data, 'base64');
+            const dims = getImageDimensions(buffer, img.mediaType);
+            const fit = fitDimensions(dims.width, dims.height, 500, 400);
+            return new Paragraph({
+                alignment: AlignmentType.CENTER,
+                spacing: { before: 160, after: 200 },
+                children: [new ImageRun({ type, data: buffer, transformation: fit })]
+            });
+        } catch (e) {
+            console.warn('No se pudo insertar imagen en el docx:', e.message);
+            return null;
+        }
+    };
 
     // ── Portada ───────────────────────────────────────────────────────────────
     children.push(new Paragraph({
@@ -1260,6 +1352,11 @@ function buildStructuredDocx(doc) {
                 spacing: { after: 80 },
                 children: [run(ph.items, { size: 18, color: MUTED })]
             }));
+        }
+
+        if (sec.image) {
+            const imgPara = imageParagraph(sec.image);
+            if (imgPara) children.push(imgPara);
         }
 
         children.push(blank());
@@ -1382,10 +1479,11 @@ function buildDocxDocument(title, description, messages, userName, diagrams = []
     return new Document({ sections: [{ properties: {}, children }] });
 }
 
-function buildStructuredPdf(res, doc, theme = 'dark') {
+function buildStructuredPdf(res, doc, theme = 'dark', images = []) {
     const T = theme === 'light' ? PDF_LIGHT_THEME : PDF_THEME;
     const PW = 595.28, PH = 841.89, M = 48, CW = PW - M * 2;
     const date = new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
+    const imageMap = new Map(images.map(img => [img.id, img]));
 
     const pdf = new PDFDocument({ margin: M, size: 'A4', autoFirstPage: false, bufferPages: true,
         info: { Title: doc.title, Author: doc.responsible || '', Creator: 'Planning by andyjara.dev' } });
@@ -1428,6 +1526,22 @@ function buildStructuredPdf(res, doc, theme = 'dark') {
         pdf.fillColor(T.ACCENT).font('Helvetica-Bold').fontSize(9.5)
             .text(`${num}.  ${text.toUpperCase()}`, M+6, y+4, { width: CW });
         pdf.moveDown(0.9);
+    };
+
+    const sectionImage = (imgRef) => {
+        const img = imageMap.get(imgRef);
+        if (!img || !embeddableImageType(img.mediaType)) return;
+        try {
+            const buffer = Buffer.from(img.data, 'base64');
+            const dims = getImageDimensions(buffer, img.mediaType);
+            const fit = fitDimensions(dims.width, dims.height, CW - 16, 360);
+            checkPage(fit.height + 40);
+            const x = M + (CW - fit.width) / 2;
+            pdf.image(buffer, x, pdf.y, { width: fit.width, height: fit.height });
+            pdf.y += fit.height + 14;
+        } catch (e) {
+            console.warn('No se pudo insertar imagen en el PDF:', e.message);
+        }
     };
 
     const bodyText = (text, indent = 0) => {
@@ -1607,6 +1721,8 @@ function buildStructuredPdf(res, doc, theme = 'dark') {
                 if (sec.content) bodyText(sec.content);
                 (sec.items || []).forEach(item => bulletItem(typeof item === 'string' ? item : item.text || ''));
         }
+
+        if (sec.image) sectionImage(sec.image);
 
         pdf.moveDown(0.6);
     }
@@ -1986,11 +2102,13 @@ app.post('/api/requirements/:id/export', requireAuth, async (req, res) => {
 
         if (!docJson) return res.status(400).json({ error: 'No hay conversación para exportar' });
 
+        const images = extractMessageImages(messages);
+
         if (format === 'pdf') {
-            buildStructuredPdf(res, docJson, theme || 'dark');
+            buildStructuredPdf(res, docJson, theme || 'dark', images);
         } else {
             try {
-                const wordDoc = buildStructuredDocx(docJson);
+                const wordDoc = buildStructuredDocx(docJson, images);
                 const buffer = await Packer.toBuffer(wordDoc);
                 res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
                 res.setHeader('Content-Disposition', `attachment; filename="${(docJson.title||row.title).replace(/[^a-z0-9]/gi,'_')}.docx"`);
