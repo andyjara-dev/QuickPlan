@@ -2035,6 +2035,41 @@ app.delete('/api/requirements/:id', requireAuth, (req, res) => {
     });
 });
 
+app.post('/api/requirements/:id/clear-context', requireAuth, (req, res) => {
+    db.run('UPDATE requirements SET messages=?, context_summary=?, updated_at=CURRENT_TIMESTAMP WHERE id=? AND user_id=?',
+        ['[]', '', req.params.id, req.user.id],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            if (this.changes === 0) return res.status(404).json({ error: 'No encontrado' });
+            res.json({ success: true, messages: [] });
+        });
+});
+
+app.post('/api/requirements/:id/rewind', requireAuth, (req, res) => {
+    const messageIndex = Number.parseInt(req.body.messageIndex, 10);
+    if (!Number.isInteger(messageIndex) || messageIndex < 0) {
+        return res.status(400).json({ error: 'messageIndex inválido' });
+    }
+
+    db.get('SELECT * FROM requirements WHERE id = ? AND user_id = ?', [req.params.id, req.user.id], (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!row) return res.status(404).json({ error: 'No encontrado' });
+
+        const messages = JSON.parse(row.messages || '[]');
+        if (messageIndex >= messages.length || messages[messageIndex].role !== 'user') {
+            return res.status(400).json({ error: 'Solo se puede rebobinar a uno de tus propios mensajes' });
+        }
+
+        const truncated = messages.slice(0, messageIndex + 1);
+        db.run('UPDATE requirements SET messages=?, context_summary=?, updated_at=CURRENT_TIMESTAMP WHERE id=? AND user_id=?',
+            [JSON.stringify(truncated), '', req.params.id, req.user.id],
+            (e) => {
+                if (e) return res.status(500).json({ error: e.message });
+                res.json({ success: true, messages: truncated });
+            });
+    });
+});
+
 app.post('/api/requirements/:id/chat', requireAuth, async (req, res) => {
     const { message, image } = req.body;
     if (!message && !image) return res.status(400).json({ error: 'message o image requerido' });

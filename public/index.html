@@ -692,7 +692,17 @@
         .chat-msg.user {
             align-self: flex-end;
             background: var(--accent-dim); color: #fff; border-radius: 12px 12px 2px 12px;
+            position: relative;
         }
+        .chat-rewind-btn {
+            position: absolute; top: -8px; right: -8px;
+            width: 22px; height: 22px; padding: 0;
+            display: flex; align-items: center; justify-content: center;
+            background: var(--bg-elevated); border: 1px solid var(--border);
+            border-radius: 50%; font-size: 0.7rem; cursor: pointer;
+            opacity: 0; transition: opacity 0.15s;
+        }
+        .chat-msg.user:hover .chat-rewind-btn { opacity: 1; }
         .chat-msg.assistant {
             align-self: flex-start;
             background: var(--bg-elevated); color: var(--text-primary); border-radius: 12px 12px 12px 2px;
@@ -1157,6 +1167,7 @@
                             <div class="req-chat-header">
                                 <span style="font-size:0.85rem;font-weight:600;flex:1;">Conversación con IA</span>
                                 <span v-if="reqMessages.length" style="font-size:0.75rem;color:var(--text-muted);">{{ Math.ceil(reqMessages.length/2) }} intercambios</span>
+                                <button v-if="reqMessages.length" class="btn btn-secondary btn-small" title="Borra toda la conversación y el resumen de contexto de este requerimiento" @click="clearRequirementContext">🧹 Limpiar contexto</button>
                             </div>
                             <div class="chat-messages" ref="chatMessages">
                                 <div v-if="reqMessages.length===0" style="text-align:center;color:var(--text-muted);padding:40px;font-size:0.88rem;">
@@ -1174,6 +1185,7 @@
                                         <div class="chat-msg user">
                                             <img v-if="msg.image" :src="'data:'+msg.image.mediaType+';base64,'+msg.image.data" class="chat-msg-image" style="max-height:220px;">
                                             <span v-if="msg.content">{{ msg.content }}</span>
+                                            <button v-if="!reqIsTyping" class="chat-rewind-btn" title="Volver a este punto (descarta este mensaje y todo lo posterior)" @click="confirmRewind(i)">⏪</button>
                                         </div>
                                     </template>
                                     <template v-else>
@@ -2630,6 +2642,42 @@
                         this.requirements = this.requirements.filter(r => r.id !== id);
                         if (this.activeRequirement?.id === id) this.activeRequirement = null;
                         this.showNotification('Requerimiento eliminado', 'success');
+                    }
+                },
+
+                async clearRequirementContext() {
+                    if (!this.activeRequirement) return;
+                    if (!confirm('¿Limpiar todo el contexto de esta conversación? Se borrará el historial de mensajes y el resumen interno. Esta acción no se puede deshacer.')) return;
+                    const res = await this.apiFetch(`/api/requirements/${this.activeRequirement.id}/clear-context`, { method: 'POST' });
+                    if (res && res.ok) {
+                        this.reqMessages = [];
+                        this.showNotification('Contexto limpiado', 'success');
+                    } else if (res) {
+                        const err = await res.json().catch(() => ({}));
+                        this.showNotification(err.error || 'Error al limpiar el contexto', 'error');
+                    }
+                },
+
+                confirmRewind(i) {
+                    if (!confirm('¿Volver a este mensaje? Se descartará este mensaje y todo lo posterior. Esta acción no se puede deshacer.')) return;
+                    this.rewindRequirement(i);
+                },
+
+                async rewindRequirement(i) {
+                    if (!this.activeRequirement) return;
+                    const res = await this.apiFetch(`/api/requirements/${this.activeRequirement.id}/rewind`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ messageIndex: i })
+                    });
+                    if (res && res.ok) {
+                        const data = await res.json();
+                        this.reqMessages = data.messages;
+                        this.$nextTick(() => { this.scrollChat(); this.renderMermaid(); });
+                        this.showNotification('Se volvió a ese punto de la conversación', 'success');
+                    } else if (res) {
+                        const err = await res.json().catch(() => ({}));
+                        this.showNotification(err.error || 'Error al rebobinar', 'error');
                     }
                 }
             }
